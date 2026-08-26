@@ -19,21 +19,30 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Instalar Dependencias del Sistema y Android SDK Tools
+    - name: Instalar Dependencias del Sistema
       run: |
         sudo dpkg --add-architecture i386
         sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32stdc++6 zlib1g:i386
+        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32stdc++6 zlib1g:i386 wget
         pip install --upgrade buildozer cython
+
+    - name: Instalar Android Command-line Tools (sdkmanager)
+      run: |
+        mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+        unzip -q cmdline-tools.zip -d ~/.buildozer/android/platform/android-sdk/cmdline-tools
+        mv ~/.buildozer/android/platform/android-sdk/cmdline-tools/cmdline-tools ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest
+        rm cmdline-tools.zip
 
     - name: Aceptar Licencias de Android SDK
       run: |
-        mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
-        yes | sdkmanager --licenses || true
+        export PATH=$PATH:~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
+        yes | sdkmanager --sdk_root=$HOME/.buildozer/android/platform/android-sdk --licenses || true
 
     - name: Compilar APK con Buildozer
       run: |
-        yes | buildozer android debug
+        export PATH=$PATH:~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
+        buildozer android debug
 
     - name: Guardar APK como Artefacto Descargable
       uses: actions/upload-artifact@v4
