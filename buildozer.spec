@@ -29,9 +29,6 @@ fullscreen = 0
 # (list) Permissions
 android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
 
-# (str) Android SDK path (CRÍTICO: vincula con la ruta donde instalamos sdkmanager en el workflow)
-android.sdk_path = ~/.buildozer/android/platform/android-sdk
-
 # (int) Target Android API
 android.api = 33
 
