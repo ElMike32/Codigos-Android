@@ -23,32 +23,16 @@ jobs:
       run: |
         sudo dpkg --add-architecture i386
         sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32stdc++6 zlib1g:i386 wget
+        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32stdc++6 zlib1g:i386 wget curl
         pip install --upgrade buildozer cython
 
-    - name: Restaurar Caché del Android SDK y Buildozer
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.buildozer/android/platform/android-sdk
-          ~/.buildozer/cache
-        key: android-sdk-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
-        restore-keys: |
-          android-sdk-${{ runner.os }}-
-
-    - name: Pre-instalar Android SDK con Espejos de Respaldo
+    - name: Pre-instalar Android SDK con Espejos Directos
       run: |
         SDK_DIR="/home/runner/.buildozer/android/platform/android-sdk"
         mkdir -p $SDK_DIR/cmdline-tools
 
         if [ ! -d "$SDK_DIR/cmdline-tools/latest" ]; then
-          for url in \
-            "https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip" \
-            "https://dl-ssl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip"; do
-            if wget --timeout=30 --tries=3 -q -O cmdline-tools.zip "$url"; then
-              break
-            fi
-          done
+          wget --user-agent="Mozilla/5.0" -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
           unzip -q cmdline-tools.zip -d $SDK_DIR/cmdline-tools
           mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
           rm -f cmdline-tools.zip
@@ -61,22 +45,30 @@ jobs:
         yes | sdkmanager --sdk_root=$SDK_DIR --licenses || true
         sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.2" "platform-tools" || true
 
-    - name: Compilar APK con Buildozer (Backoff Progresivo)
+    - name: Compilar APK con Buildozer (Fix HTTP 403 & Retry)
       run: |
-        export HTTP_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        
-        for attempt in {1..5}; do
-          echo "Intento de compilación $attempt..."
+        # Configurar Variables Globales para Forzar User-Agent en Python y Pip
+        export PIP_DEFAULT_TIMEOUT=1000
+        export HTTP_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        export PIP_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+
+        for attempt in {1..3}; do
+          echo "=========================================="
+          echo "Intento de compilación $attempt de 3..."
+          echo "=========================================="
+          
           if buildozer android debug -- --minapi=24; then
             echo "¡Compilación exitosa!"
             exit 0
           fi
-          if [ $attempt -lt 5 ]; then
-            wait_time=$((attempt * 20))
-            echo "Falló el intento $attempt. Reintentando en $wait_time segundos..."
-            sleep $wait_time
+          
+          if [ $attempt -lt 3 ]; then
+            echo "El intento $attempt falló. Limpiando caché corrupta y reintentando en 30s..."
+            # Limpiar descargas intermedias que causan bucles de error HTTP 403
+            rm -rf .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/build/other_builds/
+            sleep 30
           else
-            echo "La compilación falló tras 5 intentos."
+            echo "La compilación falló tras 3 intentos."
             exit 1
           fi
         done
