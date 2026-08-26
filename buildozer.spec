@@ -29,6 +29,9 @@ fullscreen = 0
 # (list) Permissions
 android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
 
+# (str) Android SDK path (CRÍTICO: vincula con la ruta donde instalamos sdkmanager en el workflow)
+android.sdk_path = ~/.buildozer/android/platform/android-sdk
+
 # (int) Target Android API
 android.api = 33
 
@@ -38,7 +41,7 @@ android.minapi = 21
 # (str) Android NDK version
 android.ndk = 25b
 
-# (str) Android SDK build tools version (CRÍTICO PARA RESOLVER EL ERROR DE AIDL)
+# (str) Android SDK build tools version
 android.sdk_build_tools_version = 33.0.2
 
 # (bool) Aceptar licencias del SDK automáticamente
