@@ -28,26 +28,22 @@ jobs:
 
     - name: Pre-instalar Command-line Tools y Symlink de sdkmanager
       run: |
-        # Definir ruta absoluta del SDK
         SDK_DIR="/home/runner/.buildozer/android/platform/android-sdk"
         mkdir -p $SDK_DIR/cmdline-tools
 
-        # Descargar herramientas oficial de Google
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
         unzip -q cmdline-tools.zip -d $SDK_DIR/cmdline-tools
         mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
         rm cmdline-tools.zip
 
-        # CREAR SYMLINK: engaña a p4a cuando busca la ruta antigua tools/bin/sdkmanager
         mkdir -p $SDK_DIR/tools/bin
         ln -s $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
 
-        # Aceptar Licencias
         yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR --licenses || true
 
     - name: Compilar APK con Buildozer
       run: |
-        buildozer android debug
+        buildozer android debug -- --minapi=24
 
     - name: Guardar APK como Artefacto Descargable
       uses: actions/upload-artifact@v4
