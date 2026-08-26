@@ -26,24 +26,42 @@ jobs:
         sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32stdc++6 zlib1g:i386 wget
         pip install --upgrade buildozer cython
 
-    - name: Pre-instalar Command-line Tools y Symlink de sdkmanager
+    - name: Pre-instalar Command-line Tools, SDK y Symlink
       run: |
         SDK_DIR="/home/runner/.buildozer/android/platform/android-sdk"
         mkdir -p $SDK_DIR/cmdline-tools
 
+        # 1. Descargar herramientas de linea de comandos oficial
         wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
         unzip -q cmdline-tools.zip -d $SDK_DIR/cmdline-tools
         mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
         rm cmdline-tools.zip
 
+        # 2. Symlink de compatibilidad con p4a legado
         mkdir -p $SDK_DIR/tools/bin
         ln -s $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
 
-        yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --sdk_root=$SDK_DIR --licenses || true
+        # 3. Pre-descargar componentes para evitar error HTTP 403 en Buildozer
+        export PATH=$PATH:$SDK_DIR/cmdline-tools/latest/bin
+        yes | sdkmanager --sdk_root=$SDK_DIR --licenses || true
+        sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.2" "platform-tools" || true
 
-    - name: Compilar APK con Buildozer
+    - name: Compilar APK con Buildozer (Con Reintentos)
       run: |
-        buildozer android debug -- --minapi=24
+        for attempt in {1..3}; do
+          echo "Intento de compilación $attempt..."
+          if buildozer android debug -- --minapi=24; then
+            echo "¡Compilación exitosa!"
+            exit 0
+          fi
+          if [ $attempt -lt 3 ]; then
+            echo "Falló el intento $attempt. Reintentando en 20 segundos..."
+            sleep 20
+          else
+            echo "La compilación falló tras 3 intentos."
+            exit 1
+          fi
+        done
 
     - name: Guardar APK como Artefacto Descargable
       uses: actions/upload-artifact@v4
