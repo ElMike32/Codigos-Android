@@ -32,8 +32,8 @@ android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
 # (int) Target Android API
 android.api = 33
 
-# (int) Minimum API required
-android.minapi = 21
+# (int) Minimum API required (MODIFICADO A 24 REQUERIDO POR NUMPY/PANDAS)
+android.minapi = 24
 
 # (str) Android NDK version
 android.ndk = 25b
