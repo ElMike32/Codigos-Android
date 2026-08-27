@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 180  # Increase timeout to 3 hours
 
     steps:
     - name: Checkout repository
@@ -62,6 +63,11 @@ jobs:
           zip \
           unzip
 
+    - name: Clear old Buildozer cache
+      run: |
+        rm -rf ~/.buildozer/android/platform/build-* 2>/dev/null || true
+        rm -rf ~/.buildozer/android/platform/python-for-android 2>/dev/null || true
+
     - name: Cache Buildozer and pip dependencies
       uses: actions/cache@v4
       with:
@@ -85,6 +91,7 @@ jobs:
         export GIT_HTTP_LOW_SPEED_LIMIT=1000
         export GIT_HTTP_LOW_SPEED_TIME=60
         export ANDROID_SDK_ROOT=$ANDROID_HOME
+        export LIBFFI_CONFIGURE_OPTIONS="--enable-symvers=no"
         
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
@@ -112,7 +119,7 @@ jobs:
         unzip -q /tmp/cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
         mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
         
-        # Install required SDK components - use 34.0.0 instead of 34.0.0
+        # Install required SDK components
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0" "platforms;android-33" "platform-tools"
         
         mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
@@ -126,9 +133,12 @@ jobs:
         
         export PATH=$ANDROID_HOME/build-tools/34.0.0:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
         
+        echo "Starting buildozer build at $(date)"
         buildozer --accept-sdk-license android debug
+        echo "Build completed at $(date)"
         
     - name: Upload APK Artifact
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: app-debug-apk
