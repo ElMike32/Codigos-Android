@@ -66,6 +66,12 @@ jobs:
         pip install "cython<3.0.0"
         pip install buildozer
 
+    - name: Accept Android SDK Licenses
+      run: |
+        mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
+        echo -e "\n8933046145752060477d9082d23067dd07387618\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a6378b6f4e16d4d3179cd1c1a763fe51d" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+
     - name: Build APK with Buildozer
       run: |
         export PIP_DEFAULT_TIMEOUT=1000
@@ -79,7 +85,8 @@ jobs:
         timeout = 120
         EOF
 
-        buildozer android debug
+        # Acepta automáticamente las licencias durante la ejecución de Buildozer
+        yes | buildozer android debug
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
