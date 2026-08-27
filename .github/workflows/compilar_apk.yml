@@ -92,6 +92,10 @@ jobs:
         # Ensure AIDL is accessible
         export PATH=$ANDROID_HOME/build-tools/34.0.0:$PATH
         
+        # Create symlink for buildozer's expected SDK path
+        mkdir -p ~/.buildozer/android/platform/android-sdk/build-tools
+        ln -sf $ANDROID_HOME/build-tools/34.0.0/* ~/.buildozer/android/platform/android-sdk/build-tools/ || true
+        
         # Execute buildozer
         buildozer --accept-sdk-license android debug
         
