@@ -19,6 +19,16 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Configurar Android SDK Oficial y Aceptar Licencias
+      uses: android-actions/setup-android@v3
+      with:
+        cmdline-tools-version: '9477386'
+        accept-android-sdk-licenses: true
+
+    - name: Instalar Herramientas del SDK Requeridas
+      run: |
+        yes | sdkmanager "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
+
     - name: Instalar Dependencias del Sistema
       run: |
         sudo dpkg --add-architecture i386
@@ -26,40 +36,17 @@ jobs:
         sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip python3-dev autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32ncurses6
         pip install --upgrade buildozer cython
 
-    - name: Pre-instalar Android SDK y Aceptar Licencias Globales
+    - name: Preparar Licencias Globales para Buildozer
       run: |
-        SDK_DIR="/home/runner/.buildozer/android/platform/android-sdk"
-        mkdir -p $SDK_DIR/cmdline-tools
-        mkdir -p $SDK_DIR/build-tools
-        mkdir -p $SDK_DIR/platforms
-        mkdir -p $SDK_DIR/licenses
-      
-        if [ ! -d "$SDK_DIR/cmdline-tools/latest" ]; then
-          wget --user-agent="Mozilla/5.0" -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip -d $SDK_DIR/cmdline-tools
-          mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
-          rm -f cmdline-tools.zip
-        fi
-      
-        mkdir -p $SDK_DIR/tools/bin
-        ln -sf $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
-      
-        export PATH=$PATH:$SDK_DIR/cmdline-tools/latest/bin
+        # Garantizar que Buildozer encuentre las licencias aceptadas en su ruta home
+        mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
+        cp -r $ANDROID_HOME/licenses/* ~/.buildozer/android/platform/android-sdk/licenses/ || true
 
-        # Aceptar licencias de forma explícita generando los hashes en el sistema de archivos
-        echo -e "\n24333702357913b5d178083be002f21f3969ab1\nd56f51854777bf724190fe91fc7034232b663ee6\n84831b9402646d56e45001193d3b37d6ef9d207a" > $SDK_DIR/licenses/android-sdk-license
-        echo -e "\n84831b9402646d56e45001193d3b37d6ef9d207a" > $SDK_DIR/licenses/android-sdk-preview-license
-        
-        yes | sdkmanager --sdk_root=$SDK_DIR --licenses || true
-        sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.2" "platform-tools" "ndk;25.2.9519653" || true
-
-    - name: Compilar APK con Buildozer (Fix HTTP 403 & Retry)
+    - name: Compilar APK con Buildozer
       run: |
-        # Variables de entorno para red y descargas
         export PIP_DEFAULT_TIMEOUT=1000
         export HTTP_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
         
-        # Configurar pip con estrategia de reintentos
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
         [global]
@@ -68,27 +55,8 @@ jobs:
         index-url = https://pypi.org/simple/
         EOF
 
-        for attempt in {1..3}; do
-          echo "=========================================="
-          echo "Intento de compilación $attempt de 3..."
-          echo "=========================================="
-          
-          # Forzamos los parámetros de SDK 33 y Build-tools 33.0.2 en la línea de comandos
-          if buildozer android debug -- --sdk=33 --build-tools=33.0.2 --minapi=24; then
-            echo "¡Compilación exitosa!"
-            exit 0
-          fi
-          
-          if [ $attempt -lt 3 ]; then
-            echo "El intento $attempt falló. Limpiando caché y esperando..."
-            rm -rf .buildozer/
-            rm -rf ~/.buildozer/
-            sleep 60
-          else
-            echo "La compilación falló tras 3 intentos."
-            exit 1
-          fi
-        done
+        # Ejecutamos la compilación. Se quita el borrado agresivo de ~/.buildozer en caso de fallo
+        buildozer android debug
 
     - name: Guardar APK como Artefacto Descargable
       uses: actions/upload-artifact@v4
