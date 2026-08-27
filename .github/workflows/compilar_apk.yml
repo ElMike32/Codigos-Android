@@ -26,34 +26,27 @@ jobs:
         sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip python3-dev autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32ncurses6
         pip install --upgrade buildozer cython
 
-    - name: Pre-instalar Android SDK, Crear Symlinks y Aceptar Licencias
+    - name: Pre-configurar SDK y Licencias en el Runner
       run: |
         SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
-        mkdir -p "$SDK_DIR/cmdline-tools"
-        
-        # Descargar Command Line Tools oficiales
-        wget --user-agent="Mozilla/5.0" -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-        unzip -q cmdline-tools.zip -d "$SDK_DIR/cmdline-tools"
-        mv "$SDK_DIR/cmdline-tools/cmdline-tools" "$SDK_DIR/cmdline-tools/latest"
-        rm -f cmdline-tools.zip
-
-        # Solucionar error 'tools/bin/sdkmanager does not exist' creando el enlace simbólico
-        mkdir -p "$SDK_DIR/tools/bin"
-        ln -sf "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" "$SDK_DIR/tools/bin/sdkmanager"
-
-        # Aceptar licencias globalmente escribiendo los hashes
         mkdir -p "$SDK_DIR/licenses"
+
+        # Aceptar licencias globalmente generando firmas locales
         echo -e "\n24333702357913b5d178083be002f21f3969ab1\nd56f51854777bf724190fe91fc7034232b663ee6\n84831b9402646d56e45001193d3b37d6ef9d207a" > "$SDK_DIR/licenses/android-sdk-license"
         echo -e "\n84831b9402646d56e45001193d3b37d6ef9d207a" > "$SDK_DIR/licenses/android-sdk-preview-license"
-        
-        # Ejecutar aceptación de licencias mediante el sdkmanager enlazado
-        yes | "$SDK_DIR/tools/bin/sdkmanager" --licenses || true
+
+        # Instalar paquetes requeridos sin descargar platform-tools preliminares
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root="$SDK_DIR" "platforms;android-33" "build-tools;33.0.2" "platform-tools" || true
+
+        # Crear compatibilidad de ruta con versiones viejas de Buildozer (tools/bin/sdkmanager)
+        mkdir -p "$SDK_DIR/tools/bin"
+        ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "$SDK_DIR/tools/bin/sdkmanager"
 
     - name: Compilar APK con Buildozer
       run: |
         export PIP_DEFAULT_TIMEOUT=1000
         export HTTP_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
-        
+
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
         [global]
@@ -62,7 +55,8 @@ jobs:
         index-url = https://pypi.org/simple/
         EOF
 
-        buildozer android debug
+        # Compilar especificando sdk=33 y build-tools=33.0.2 fijas
+        buildozer android debug -- --sdk=33 --build-tools=33.0.2 --minapi=24
 
     - name: Guardar APK como Artefacto Descargable
       uses: actions/upload-artifact@v4
