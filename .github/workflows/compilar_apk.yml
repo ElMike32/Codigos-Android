@@ -49,64 +49,39 @@ jobs:
 
     - name: Compilar APK con Buildozer (Fix HTTP 403 & Retry)
       run: |
-        # Configure buildozer spec with extended timeouts
-        cat > buildozer.spec << 'EOF'
-        [app]
-        title = App Componentes Android
-        package.name = appcomponentes
-        package.domain = org.example
-        source.dir = .
-        source.include_exts = py,png,jpg,kv,atlas
-        version = 0.1
+        # Configuración de variables de entorno para descargas y reintentos
+        export PIP_DEFAULT_TIMEOUT=1000
+        export HTTP_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
         
-        [buildozer]
-        log_level = 2
-        warn_on_root = 1
-        
-        # Extend timeouts for downloads
-        p4a.source_dir = 
-        p4a.hook = 
-        android.api = 33
-        android.minapi = 24
-        android.sdk = 33
-        android.ndk = 25.2.9519653
-        android.build_tools_version = 33.0.2
-        android.accept_sdk_license = True
-        android.dependencies = python3
-        EOF
-          # Set environment variables for better download handling
-          export PIP_DEFAULT_TIMEOUT=1000
-          export HTTP_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
-          
-          # Configure pip with retry strategy
-          mkdir -p ~/.pip
-          cat > ~/.pip/pip.conf << 'EOF'
+        mkdir -p ~/.pip
+        cat > ~/.pip/pip.conf << 'EOF'
         [global]
         retries = 5
         timeout = 120
         index-url = https://pypi.org/simple/
         EOF
-          for attempt in {1..3}; do
-            echo "=========================================="
-            echo "Intento de compilación $attempt de 3..."
-            echo "=========================================="
-            
-            if buildozer android debug -- --minapi=24; then
-              echo "¡Compilación exitosa!"
-              exit 0
-            fi
-            
-            if [ $attempt -lt 3 ]; then
-              echo "El intento $attempt falló. Limpiando caché y esperando..."
-              rm -rf .buildozer/
-              rm -rf ~/.buildozer/
-              sleep 60
-            else
-              echo "La compilación falló tras 3 intentos."
-              exit 1
-            fi
-          done
 
+        for attempt in {1..3}; do
+          echo "=========================================="
+          echo "Intento de compilación $attempt de 3..."
+          echo "=========================================="
+          
+          if buildozer android debug; then
+            echo "¡Compilación exitosa!"
+            exit 0
+          fi
+          
+          if [ $attempt -lt 3 ]; then
+            echo "El intento $attempt falló. Limpiando caché y esperando..."
+            rm -rf .buildozer/
+            rm -rf ~/.buildozer/
+            sleep 60
+          else
+            echo "La compilación falló tras 3 intentos."
+            exit 1
+          fi
+        done
+        
     - name: Guardar APK como Artefacto Descargable
       uses: actions/upload-artifact@v4
       with:
