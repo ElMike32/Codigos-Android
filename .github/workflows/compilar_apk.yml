@@ -55,6 +55,8 @@ jobs:
           autoconf \
           automake \
           libtool \
+          libtoolize \
+          m4 \
           pkg-config \
           cmake \
           zip \
