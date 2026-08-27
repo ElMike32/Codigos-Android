@@ -19,15 +19,11 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Configurar Android SDK Oficial y Aceptar Licencias
+    - name: Configurar Android SDK Oficial
       uses: android-actions/setup-android@v3
       with:
         cmdline-tools-version: '9477386'
         accept-android-sdk-licenses: true
-
-    - name: Instalar Herramientas del SDK Requeridas
-      run: |
-        yes | sdkmanager "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
 
     - name: Instalar Dependencias del Sistema
       run: |
@@ -36,11 +32,19 @@ jobs:
         sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip python3-dev autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32ncurses6
         pip install --upgrade buildozer cython
 
-    - name: Preparar Licencias Globales para Buildozer
+    - name: Enlazar Rutas del SDK y Licencias para Buildozer
       run: |
-        # Garantizar que Buildozer encuentre las licencias aceptadas en su ruta home
-        mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
-        cp -r $ANDROID_HOME/licenses/* ~/.buildozer/android/platform/android-sdk/licenses/ || true
+        # Definir el directorio objetivo donde Buildozer busca el SDK
+        BUILDOZER_SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
+        mkdir -p "$BUILDOZER_SDK_DIR"
+
+        # Copiar/Vincular las licencias pre-aceptadas
+        mkdir -p "$BUILDOZER_SDK_DIR/licenses"
+        cp -r $ANDROID_HOME/licenses/* "$BUILDOZER_SDK_DIR/licenses/" || true
+
+        # Crear enlace simbólico para que la ruta legacy 'tools/bin/sdkmanager' funcione
+        mkdir -p "$BUILDOZER_SDK_DIR/tools/bin"
+        ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "$BUILDOZER_SDK_DIR/tools/bin/sdkmanager"
 
     - name: Compilar APK con Buildozer
       run: |
@@ -55,7 +59,6 @@ jobs:
         index-url = https://pypi.org/simple/
         EOF
 
-        # Ejecutamos la compilación. Se quita el borrado agresivo de ~/.buildozer en caso de fallo
         buildozer android debug
 
     - name: Guardar APK como Artefacto Descargable
