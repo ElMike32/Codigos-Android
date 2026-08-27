@@ -71,14 +71,18 @@ jobs:
         export PIP_DEFAULT_TIMEOUT=1000
         export GIT_HTTP_LOW_SPEED_LIMIT=1000
         export GIT_HTTP_LOW_SPEED_TIME=60
-
+    
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
         [global]
         retries = 5
         timeout = 120
         EOF
-
+    
+        # Install Android SDK components before building
+        mkdir -p ~/.buildozer/android/platform/android-sdk
+        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0" || true
+    
         # Ejecuta buildozer aceptando automáticamente los términos de la licencia del SDK de Android
         buildozer --accept-sdk-license android debug
 
