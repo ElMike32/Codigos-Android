@@ -55,7 +55,7 @@ jobs:
           autoconf \
           automake \
           libtool \
-          libtoolize \
+          libltdl-dev \
           m4 \
           pkg-config \
           cmake \
