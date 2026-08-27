@@ -23,27 +23,29 @@ jobs:
       run: |
         sudo dpkg --add-architecture i386
         sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32stdc++6 zlib1g:i386 wget curl
+        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip python3-dev autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32ncurses6
         pip install --upgrade buildozer cython
 
     - name: Pre-instalar Android SDK con Espejos Directos
       run: |
         SDK_DIR="/home/runner/.buildozer/android/platform/android-sdk"
         mkdir -p $SDK_DIR/cmdline-tools
-
+        mkdir -p $SDK_DIR/build-tools
+        mkdir -p $SDK_DIR/platforms
+    
         if [ ! -d "$SDK_DIR/cmdline-tools/latest" ]; then
           wget --user-agent="Mozilla/5.0" -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
           unzip -q cmdline-tools.zip -d $SDK_DIR/cmdline-tools
           mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
           rm -f cmdline-tools.zip
         fi
-
+    
         mkdir -p $SDK_DIR/tools/bin
         ln -sf $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
-
+    
         export PATH=$PATH:$SDK_DIR/cmdline-tools/latest/bin
         yes | sdkmanager --sdk_root=$SDK_DIR --licenses || true
-        sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.2" "platform-tools" || true
+        sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.2" "platform-tools" "ndk;25.2.9519653" || true
 
     - name: Compilar APK con Buildozer (Fix HTTP 403 & Retry)
       run: |
@@ -68,6 +70,7 @@ jobs:
         android.minapi = 24
         android.ndk = 25b
         android.accept_sdk_license = True
+        android.dependencies = python3
         EOF
           # Set environment variables for better download handling
           export PIP_DEFAULT_TIMEOUT=1000
