@@ -79,9 +79,14 @@ jobs:
         timeout = 120
         EOF
     
-        # Install Android SDK components before building
-        mkdir -p ~/.buildozer/android/platform/android-sdk
-        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0" || true
+        # Download and set up Android SDK command-line tools
+        mkdir -p $ANDROID_HOME/cmdline-tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip
+        unzip -q /tmp/cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
+        mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+        
+        # Install required SDK components
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0" "platforms;android-34"
     
         # Ejecuta buildozer aceptando automáticamente los términos de la licencia del SDK de Android
         buildozer --accept-sdk-license android debug
