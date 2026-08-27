@@ -19,36 +19,53 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
+    - name: Cachear Dependencias de Buildozer y Python-for-Android
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.buildozer
+          .buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+
     - name: Instalar Dependencias del Sistema
       run: |
         sudo dpkg --add-architecture i386
         sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip python3-dev autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32ncurses6
+        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip python3-dev autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32ncurses6 ccache
         pip install --upgrade buildozer cython
 
-    - name: Pre-instalar Android SDK y Aceptar Licencias
+    - name: Pre-configurar SDK, Licencias y Git Buffers
       run: |
+        # Prevenir fallos en git clone pesados (NumPy, OpenSSL, etc.)
+        git config --global http.postBuffer 524288000
+        git config --global http.lowSpeedLimit 1000
+        git config --global http.lowSpeedTime 600
+
         SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
         mkdir -p "$SDK_DIR/cmdline-tools"
-        
-        # 1. Descargar commandlinetools de Google
-        wget --user-agent="Mozilla/5.0" -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-        unzip -q cmdline-tools.zip -d "$SDK_DIR/cmdline-tools"
-        mv "$SDK_DIR/cmdline-tools/cmdline-tools" "$SDK_DIR/cmdline-tools/latest"
-        rm -f cmdline-tools.zip
 
-        # 2. Crear symlink a la ruta antigua requerida por Buildozer (tools/bin/sdkmanager)
+        # 1. Instalar Command Line Tools si no existen
+        if [ ! -d "$SDK_DIR/cmdline-tools/latest" ]; then
+          wget --user-agent="Mozilla/5.0" -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip -d "$SDK_DIR/cmdline-tools"
+          mv "$SDK_DIR/cmdline-tools/cmdline-tools" "$SDK_DIR/cmdline-tools/latest"
+          rm -f cmdline-tools.zip
+        fi
+
+        # 2. Symlinks de compatibilidad con versiones anteriores de Buildozer
         mkdir -p "$SDK_DIR/tools/bin"
         ln -sf "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" "$SDK_DIR/tools/bin/sdkmanager"
 
-        # 3. Aceptar licencias globalmente
+        # 3. Firmar licencias de Android SDK
         mkdir -p "$SDK_DIR/licenses"
         echo -e "\n24333702357913b5d178083be002f21f3969ab1\nd56f51854777bf724190fe91fc7034232b663ee6\n84831b9402646d56e45001193d3b37d6ef9d207a" > "$SDK_DIR/licenses/android-sdk-license"
         echo -e "\n84831b9402646d56e45001193d3b37d6ef9d207a" > "$SDK_DIR/licenses/android-sdk-preview-license"
         
         yes | "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" --licenses || true
 
-        # 4. Instalar componentes requeridos directamente para que Buildozer no intente descargarlos
+        # 4. Instalar componentes base del SDK de Android
         "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" "platforms;android-33" "build-tools;33.0.2" "platform-tools"
 
     - name: Compilar APK con Buildozer
@@ -64,7 +81,6 @@ jobs:
         index-url = https://pypi.org/simple/
         EOF
 
-        # Se forza el uso del SDK/Build-tools instalados previamente
         buildozer android debug -- --sdk=33 --build-tools=33.0.2 --minapi=24
 
     - name: Guardar APK como Artefacto Descargable
