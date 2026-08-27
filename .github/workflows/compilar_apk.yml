@@ -98,6 +98,10 @@ jobs:
         export CFLAGS="-D__GLIBC__=2 -D__GLIBC_MINOR__=31"
         export CXXFLAGS="-D__GLIBC__=2 -D__GLIBC_MINOR__=31"
         
+        # FIX: Set Python constraint to avoid Python 3.14 compatibility issues
+        export PIP_CONSTRAINT=/dev/null
+        export PYTHONWARNINGS=ignore
+        
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
         [global]
