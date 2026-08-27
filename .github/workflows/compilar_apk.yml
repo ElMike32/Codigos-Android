@@ -36,9 +36,9 @@ jobs:
         sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip python3-dev autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32ncurses6 ccache
         pip install --upgrade buildozer cython
 
-    - name: Pre-configurar SDK, Licencias y Git Buffers
+    - name: Pre-configurar SDK, Symlinks y Licencias
       run: |
-        # Configuración de red para Git
+        # Configurar límites y buffer para descargas pesadas en Git
         git config --global http.postBuffer 524288000
         git config --global http.lowSpeedLimit 1000
         git config --global http.lowSpeedTime 600
@@ -46,7 +46,7 @@ jobs:
         SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
         mkdir -p "$SDK_DIR/cmdline-tools"
 
-        # 1. Descargar commandlinetools si no existen
+        # 1. Instalar commandlinetools de Google si no están presentes
         if [ ! -d "$SDK_DIR/cmdline-tools/latest" ]; then
           wget --user-agent="Mozilla/5.0" -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
           unzip -q cmdline-tools.zip -d "$SDK_DIR/cmdline-tools"
@@ -54,25 +54,25 @@ jobs:
           rm -f cmdline-tools.zip
         fi
 
-        # 2. Symlink para compatibilidad legacy con Buildozer (tools/bin/sdkmanager)
+        # 2. Symlinks para que el ejecutable sea detectado en la ruta antigua
         mkdir -p "$SDK_DIR/tools/bin"
         ln -sf "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" "$SDK_DIR/tools/bin/sdkmanager"
 
-        # 3. Firmar licencias de Android SDK de forma explícita
+        # 3. Firmar e inyectar licencias pre-aceptadas
         mkdir -p "$SDK_DIR/licenses"
         echo -e "\n24333702357913b5d178083be002f21f3969ab1\nd56f51854777bf724190fe91fc7034232b663ee6\n84831b9402646d56e45001193d3b37d6ef9d207a" > "$SDK_DIR/licenses/android-sdk-license"
         echo -e "\n84831b9402646d56e45001193d3b37d6ef9d207a" > "$SDK_DIR/licenses/android-sdk-preview-license"
-        
+
         yes | "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" --licenses || true
 
-        # 4. Pre-instalar componentes de Android SDK para evitar llamadas remotas de Buildozer
+        # 4. Descargar e instalar las herramientas de compilación requeridas
         "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" "platforms;android-33" "build-tools;33.0.2" "platform-tools"
 
     - name: Compilar APK con Buildozer
       run: |
         export PIP_DEFAULT_TIMEOUT=1000
         export HTTP_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
-        
+
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
         [global]
@@ -81,8 +81,8 @@ jobs:
         index-url = https://pypi.org/simple/
         EOF
 
-        # Se compila omitiendo la verificación remota de versiones
-        buildozer android debug -- --sdk=33 --build-tools=33.0.2 --minapi=24 --warn_on_version_check
+        # Se compila omitiendo la actualización y escaneo de SDKs en red
+        buildozer android debug -- --sdk=33 --build-tools=33.0.2 --minapi=24 --skip_sdk_update
 
     - name: Guardar APK como Artefacto Descargable
       uses: actions/upload-artifact@v4
