@@ -87,20 +87,21 @@ jobs:
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
         [global]
-        retries = 10
-        timeout = 300
+        retries = 20
+        timeout = 600
         index-url = https://pypi.org/simple/
+        extra-index-url = https://mirrors.aliyun.com/pypi/simple/
         EOF
-    
+        
         # Download and set up Android SDK command-line tools
         mkdir -p $ANDROID_HOME/cmdline-tools
-        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip
+        wget --retry-connrefused --waitretry=5 --read-timeout=20 https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip
         unzip -q /tmp/cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
         mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
         
         # Install required SDK components with additional tools
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0" "platforms;android-33" "platform-tools"
-    
+        
         mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
         ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
         ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/* ~/.buildozer/android/platform/android-sdk/tools/bin/ || true
@@ -111,7 +112,7 @@ jobs:
         ln -sf $ANDROID_HOME/platform-tools ~/.buildozer/android/platform/android-sdk/platform-tools || true
         
         export PATH=$ANDROID_HOME/build-tools/34.0.0:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-
+        
         ls -la ~/.buildozer/android/platform/android-sdk/tools/bin/
         which sdkmanager || echo "sdkmanager not in PATH"
         
