@@ -89,12 +89,16 @@ jobs:
         # Install required SDK components with additional tools
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0" "platforms;android-34" "platform-tools"
     
-        # Ensure AIDL is accessible
-        export PATH=$ANDROID_HOME/build-tools/34.0.0:$PATH
+        # Create buildozer SDK directory structure and symlink cmdline-tools
+        mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
+        ln -sf $ANDROID_HOME/cmdline-tools/latest/* ~/.buildozer/android/platform/android-sdk/tools/ || true
         
-        # Create symlink for buildozer's expected SDK path
+        # Create symlink for build-tools
         mkdir -p ~/.buildozer/android/platform/android-sdk/build-tools
         ln -sf $ANDROID_HOME/build-tools/34.0.0/* ~/.buildozer/android/platform/android-sdk/build-tools/ || true
+        
+        # Export PATH to ensure tools are accessible
+        export PATH=$ANDROID_HOME/build-tools/34.0.0:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
         
         # Execute buildozer
         buildozer --accept-sdk-license android debug
