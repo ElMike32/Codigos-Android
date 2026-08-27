@@ -1,91 +1,89 @@
-name: Compilar APK de Android
+name: Build Android APK
 
 on:
   push:
     branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
-  build-android:
-    runs-on: ubuntu-22.04
+  build:
+    runs-on: ubuntu-latest
 
     steps:
-    - name: Descargar Código Fuente
+    - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        submodules: true
 
-    - name: Configurar Entorno Java (JDK 17)
+    - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '17'
+        java-version: '21'
 
-    - name: Cachear Dependencias de Buildozer
-      uses: actions/cache@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
       with:
-        path: |
-          ~/.buildozer
-          .buildozer
-        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
-        restore-keys: |
-          ${{ runner.os }}-buildozer-
+        python-version: '3.11'
 
-    - name: Instalar Dependencias del Sistema
+    - name: Configure Git network timeouts
       run: |
-        sudo dpkg --add-architecture i386
-        sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip python3-dev autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32ncurses6 ccache
-        pip install --upgrade buildozer cython
-
-    - name: Pre-configurar SDK, Symlinks y Licencias
-      run: |
-        # Configurar límites y buffer para descargas pesadas en Git
         git config --global http.postBuffer 524288000
         git config --global http.lowSpeedLimit 1000
-        git config --global http.lowSpeedTime 600
+        git config --global http.lowSpeedTime 60
+        git config --global fetch.unpackLimit 1
+        git config --global receive.unpackLimit 1
 
-        SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
-        mkdir -p "$SDK_DIR/cmdline-tools"
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          git \
+          ffmpeg \
+          libcreator-dev \
+          libsdl2-dev \
+          libsdl2-image-dev \
+          libsdl2-mixin-dev \
+          libsdl2-ttf-dev \
+          libportmidi-dev \
+          libswscale-dev \
+          libavformat-dev \
+          libavcodec-dev \
+          zlib1g-dev \
+          autoconf \
+          automake \
+          libtool \
+          pkg-config \
+          cmake \
+          zip \
+          unzip
 
-        # 1. Instalar commandlinetools de Google si no están presentes
-        if [ ! -d "$SDK_DIR/cmdline-tools/latest" ]; then
-          wget --user-agent="Mozilla/5.0" -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip -d "$SDK_DIR/cmdline-tools"
-          mv "$SDK_DIR/cmdline-tools/cmdline-tools" "$SDK_DIR/cmdline-tools/latest"
-          rm -f cmdline-tools.zip
-        fi
+    - name: Install Buildozer and Cython
+      run: |
+        pip install --upgrade pip setuptools wheel
+        pip install "cython<3.0.0"
+        pip install buildozer
 
-        # 2. Symlinks para que el ejecutable sea detectado en la ruta antigua
-        mkdir -p "$SDK_DIR/tools/bin"
-        ln -sf "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" "$SDK_DIR/tools/bin/sdkmanager"
-
-        # 3. Firmar e inyectar licencias pre-aceptadas
-        mkdir -p "$SDK_DIR/licenses"
-        echo -e "\n24333702357913b5d178083be002f21f3969ab1\nd56f51854777bf724190fe91fc7034232b663ee6\n84831b9402646d56e45001193d3b37d6ef9d207a" > "$SDK_DIR/licenses/android-sdk-license"
-        echo -e "\n84831b9402646d56e45001193d3b37d6ef9d207a" > "$SDK_DIR/licenses/android-sdk-preview-license"
-
-        yes | "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" --licenses || true
-
-        # 4. Descargar e instalar las herramientas de compilación requeridas
-        "$SDK_DIR/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_DIR" "platforms;android-33" "build-tools;33.0.2" "platform-tools"
-
-    - name: Compilar APK con Buildozer
+    - name: Build APK with Buildozer
       run: |
         export PIP_DEFAULT_TIMEOUT=1000
-        export HTTP_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+        export GIT_HTTP_LOW_SPEED_LIMIT=1000
+        export GIT_HTTP_LOW_SPEED_TIME=60
 
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
         [global]
         retries = 5
         timeout = 120
-        index-url = https://pypi.org/simple/
         EOF
 
-        # Se compila omitiendo la actualización y escaneo de SDKs en red
-        buildozer android debug -- --sdk=33 --build-tools=33.0.2 --minapi=24 --skip_sdk_update
+        buildozer android debug
 
-    - name: Guardar APK como Artefacto Descargable
+    - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: App_Componentes_Android_APK
+        name: app-debug-apk
         path: bin/*.apk
