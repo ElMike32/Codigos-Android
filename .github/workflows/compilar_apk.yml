@@ -79,27 +79,39 @@ jobs:
 
     - name: Build APK with Buildozer
       run: |
-        export PIP_DEFAULT_TIMEOUT=1000
+        export PIP_DEFAULT_TIMEOUT=1200
         export GIT_HTTP_LOW_SPEED_LIMIT=1000
         export GIT_HTTP_LOW_SPEED_TIME=60
         export ANDROID_SDK_ROOT=$ANDROID_HOME
+        export PIP_RETRIES=20
         
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
         [global]
         retries = 20
-        timeout = 600
+        timeout = 1200
         index-url = https://pypi.org/simple/
-        extra-index-url = https://mirrors.aliyun.com/pypi/simple/
         EOF
         
-        # Download and set up Android SDK command-line tools
+        # Download and set up Android SDK command-line tools with retries
         mkdir -p $ANDROID_HOME/cmdline-tools
-        wget --retry-connrefused --waitretry=5 --read-timeout=20 https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip
+        for i in {1..5}; do
+          if wget --retry-connrefused --waitretry=5 --read-timeout=30 --connect-timeout=30 https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip; then
+            break
+          fi
+          if [ $i -lt 5 ]; then
+            echo "Download attempt $i failed, retrying in 10 seconds..."
+            sleep 10
+          else
+            echo "Failed to download after 5 attempts"
+            exit 1
+          fi
+        done
+        
         unzip -q /tmp/cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
         mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
         
-        # Install required SDK components with additional tools
+        # Install required SDK components
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0" "platforms;android-33" "platform-tools"
         
         mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
@@ -112,9 +124,6 @@ jobs:
         ln -sf $ANDROID_HOME/platform-tools ~/.buildozer/android/platform/android-sdk/platform-tools || true
         
         export PATH=$ANDROID_HOME/build-tools/34.0.0:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-        
-        ls -la ~/.buildozer/android/platform/android-sdk/tools/bin/
-        which sdkmanager || echo "sdkmanager not in PATH"
         
         buildozer --accept-sdk-license android debug
         
