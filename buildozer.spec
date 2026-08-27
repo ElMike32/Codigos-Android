@@ -17,8 +17,8 @@ source.include_exts = py,png,jpg,kv,atlas,ico,ttf
 # (str) Application versioning
 version = 1.0.0
 
-# (list) Application requirements
-requirements = python3,kivy,pandas,requests,certifi,urllib3,qrcode,pillow,reportlab,openpyxl
+# (list) Application requirements - SIMPLIFIED TO AVOID COMPILATION ISSUES
+requirements = python3,kivy,requests,certifi,urllib3
 
 # (str) Supported orientation
 orientation = portrait
@@ -32,16 +32,16 @@ android.permissions = INTERNET, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE
 # (int) Target Android API
 android.api = 33
 
-# (int) Minimum API required (MODIFICADO A 24 REQUERIDO POR NUMPY/PANDAS)
+# (int) Minimum API required
 android.minapi = 24
 
 # (str) Android NDK version
 android.ndk = 25b
 
 # (str) Android SDK build tools version
-android.sdk_build_tools_version = 33.0.2
+android.sdk_build_tools_version = 34.0.0
 
-# (bool) Aceptar licencias del SDK automáticamente
+# (bool) Accept SDK licenses automatically
 android.accept_sdk_licenses = True
 
 # (list) The Android archs to build for
