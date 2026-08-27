@@ -75,15 +75,16 @@ jobs:
           ~/.buildozer
           ~/.cache/pip
           ~/.pip
-        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        key: ${{ runner.os }}-buildozer-ndk25-${{ hashFiles('buildozer.spec') }}
         restore-keys: |
-          ${{ runner.os }}-buildozer-
+          ${{ runner.os }}-buildozer-ndk25-
 
-    - name: Install Buildozer and Cython
+    - name: Install Buildozer and dependencies
       run: |
         pip install --upgrade pip setuptools wheel
         pip install "cython<3.0.0"
-        pip install buildozer
+        pip install --upgrade buildozer
+        pip install --upgrade python-for-android
 
     - name: Build APK with Buildozer
       run: |
@@ -92,6 +93,10 @@ jobs:
         export GIT_HTTP_LOW_SPEED_TIME=60
         export ANDROID_SDK_ROOT=$ANDROID_HOME
         export LIBFFI_CONFIGURE_OPTIONS="--enable-symvers=no"
+        
+        # FIX: Set proper compiler flags for NDK r25b
+        export CFLAGS="-D__GLIBC__=2 -D__GLIBC_MINOR__=31"
+        export CXXFLAGS="-D__GLIBC__=2 -D__GLIBC_MINOR__=31"
         
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
