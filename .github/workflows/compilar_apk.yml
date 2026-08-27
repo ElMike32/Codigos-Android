@@ -94,8 +94,15 @@ jobs:
         ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/* ~/.buildozer/android/platform/android-sdk/tools/bin/ || true
         
         # Create symlink for build-tools
-        mkdir -p ~/.buildozer/android/platform/android-sdk/build-tools
-        ln -sf $ANDROID_HOME/build-tools/34.0.0/* ~/.buildozer/android/platform/android-sdk/build-tools/ || true
+        # Create symlink for build-tools directory itself
+        mkdir -p ~/.buildozer/android/platform/android-sdk
+        ln -sf $ANDROID_HOME/build-tools ~/.buildozer/android/platform/android-sdk/build-tools
+        
+        # Also ensure platforms directory is symlinked
+        ln -sf $ANDROID_HOME/platforms ~/.buildozer/android/platform/android-sdk/platforms || true
+        
+        # And platform-tools
+        ln -sf $ANDROID_HOME/platform-tools ~/.buildozer/android/platform/android-sdk/platform-tools || true
         
         # Export PATH to ensure tools are accessible
         export PATH=$ANDROID_HOME/build-tools/34.0.0:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
