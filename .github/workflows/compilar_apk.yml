@@ -82,7 +82,7 @@ jobs:
     - name: Install Buildozer and dependencies
       run: |
         pip install --upgrade pip setuptools wheel
-        pip install "cython<3.0.0"
+        pip install "cython>=3.0.0"
         pip install --upgrade buildozer
         pip install --upgrade python-for-android
 
