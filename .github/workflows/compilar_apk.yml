@@ -83,9 +83,6 @@ jobs:
         export GIT_HTTP_LOW_SPEED_LIMIT=1000
         export GIT_HTTP_LOW_SPEED_TIME=60
         export ANDROID_SDK_ROOT=$ANDROID_HOME
-        export PIP_RETRIES=20
-        # Configure Python for Android to use better retry behavior
-        export P4A_RELEASE_BRANCH=develop
         
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
@@ -113,7 +110,7 @@ jobs:
         unzip -q /tmp/cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
         mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
         
-        # Install required SDK components
+        # Install required SDK components - use 34.0.0 instead of 34.0.0
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "build-tools;34.0.0" "platforms;android-33" "platform-tools"
         
         mkdir -p ~/.buildozer/android/platform/android-sdk/tools/bin
@@ -126,9 +123,6 @@ jobs:
         ln -sf $ANDROID_HOME/platform-tools ~/.buildozer/android/platform/android-sdk/platform-tools || true
         
         export PATH=$ANDROID_HOME/build-tools/34.0.0:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-        
-        # Clear any cached downloads that might have failed
-        rm -rf ~/.buildozer/android/platform/build-* 2>/dev/null || true
         
         buildozer --accept-sdk-license android debug
         
