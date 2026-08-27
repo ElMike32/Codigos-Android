@@ -26,18 +26,24 @@ jobs:
         sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip python3-dev autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libsqlite3-dev cmake libssl-dev libffi-dev lib32z1 lib32ncurses6
         pip install --upgrade buildozer cython
 
-    - name: Aceptar Licencias del SDK del Runner
+    - name: Pre-aceptar Licencias de Android SDK para Buildozer
       run: |
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+        # Generar archivos de licencias pre-aceptadas en la ruta donde Buildozer descarga el SDK
+        MK_DIR="$HOME/.buildozer/android/platform/android-sdk/licenses"
+        mkdir -p "$MK_DIR"
+        
+        echo -e "\n24333702357913b5d178083be002f21f3969ab1\nd56f51854777bf724190fe91fc7034232b663ee6\n84831b9402646d56e45001193d3b37d6ef9d207a" > "$MK_DIR/android-sdk-license"
+        echo -e "\n84831b9402646d56e45001193d3b37d6ef9d207a" > "$MK_DIR/android-sdk-preview-license"
+
+        # También sincronizar licencias del SDK preinstalado si existe
+        if [ -d "$ANDROID_HOME/licenses" ]; then
+          cp -r $ANDROID_HOME/licenses/* "$MK_DIR/" || true
+        fi
 
     - name: Compilar APK con Buildozer
       run: |
         export PIP_DEFAULT_TIMEOUT=1000
         export HTTP_USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
-        
-        # Apuntar Buildozer al SDK y NDK nativos del entorno Runner
-        export ANDROID_SDK_ROOT=$ANDROID_HOME
-        export ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME
         
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
@@ -47,8 +53,8 @@ jobs:
         index-url = https://pypi.org/simple/
         EOF
 
-        # Ejecutamos la compilación indicando las rutas locales
-        buildozer android debug -- --sdk-dir=$ANDROID_HOME --ndk-dir=$ANDROID_NDK_LATEST_HOME
+        # Se especifican banderas CLI fijas para evitar la descarga no interactiva de Build-Tools 37
+        buildozer android debug -- --build-tools=33.0.2 --sdk=33
 
     - name: Guardar APK como Artefacto Descargable
       uses: actions/upload-artifact@v4
