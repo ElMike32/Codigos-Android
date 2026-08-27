@@ -17,8 +17,8 @@ source.include_exts = py,png,jpg,kv,atlas,ico,ttf
 # (str) Application versioning
 version = 1.0.0
 
-# (list) Application requirements - SIMPLIFIED TO AVOID COMPILATION ISSUES
-requirements = python3,kivy,requests,certifi,urllib3
+# (list) Application requirements - UPDATED FOR NDK r25b COMPATIBILITY
+requirements = python3,kivy==2.1.0,requests,certifi,urllib3
 
 # (str) Supported orientation
 orientation = portrait
@@ -45,11 +45,24 @@ android.sdk_build_tools_version = 34.0.0
 android.accept_sdk_licenses = True
 
 # (list) The Android archs to build for
-android.archs = arm64-v8a, armeabi-v7a
+android.archs = arm64-v8a,armeabi-v7a
 
 # (bool) Enable AndroidX support
 android.enable_androidx = True
 
+# CRITICAL: Fix for NDK r25b header conflicts
+# These flags prevent mixing host system headers with NDK sysroot
+android.add_src = 
+android.add_libs_armeabi_v7a = 
+android.add_libs_arm64_v8a = 
+
+# Cython configuration for better compatibility
+android.cython_cflags = -O0
+
+# Skip Java compilation issues
+android.skip_update = False
+
+# Setup logging
 [buildozer]
 # (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
 log_level = 2
