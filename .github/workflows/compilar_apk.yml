@@ -32,17 +32,17 @@ jobs:
         mkdir -p $SDK_DIR/cmdline-tools
         mkdir -p $SDK_DIR/build-tools
         mkdir -p $SDK_DIR/platforms
-    
+      
         if [ ! -d "$SDK_DIR/cmdline-tools/latest" ]; then
           wget --user-agent="Mozilla/5.0" -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
           unzip -q cmdline-tools.zip -d $SDK_DIR/cmdline-tools
           mv $SDK_DIR/cmdline-tools/cmdline-tools $SDK_DIR/cmdline-tools/latest
           rm -f cmdline-tools.zip
         fi
-    
+      
         mkdir -p $SDK_DIR/tools/bin
         ln -sf $SDK_DIR/cmdline-tools/latest/bin/sdkmanager $SDK_DIR/tools/bin/sdkmanager
-    
+      
         export PATH=$PATH:$SDK_DIR/cmdline-tools/latest/bin
         yes | sdkmanager --sdk_root=$SDK_DIR --licenses || true
         sdkmanager --sdk_root=$SDK_DIR "platforms;android-33" "build-tools;33.0.2" "platform-tools" "ndk;25.2.9519653" || true
@@ -68,7 +68,9 @@ jobs:
         p4a.hook = 
         android.api = 33
         android.minapi = 24
-        android.ndk = 25b
+        android.sdk = 33
+        android.ndk = 25.2.9519653
+        android.build_tools_version = 33.0.2
         android.accept_sdk_license = True
         android.dependencies = python3
         EOF
