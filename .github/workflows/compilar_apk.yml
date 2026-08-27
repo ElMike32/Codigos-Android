@@ -60,6 +60,17 @@ jobs:
           zip \
           unzip
 
+    - name: Cache Buildozer and pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.buildozer
+          ~/.cache/pip
+          ~/.pip
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+
     - name: Install Buildozer and Cython
       run: |
         pip install --upgrade pip setuptools wheel
@@ -72,12 +83,13 @@ jobs:
         export GIT_HTTP_LOW_SPEED_LIMIT=1000
         export GIT_HTTP_LOW_SPEED_TIME=60
         export ANDROID_SDK_ROOT=$ANDROID_HOME
-    
+        
         mkdir -p ~/.pip
         cat > ~/.pip/pip.conf << 'EOF'
         [global]
-        retries = 5
-        timeout = 120
+        retries = 10
+        timeout = 300
+        index-url = https://pypi.org/simple/
         EOF
     
         # Download and set up Android SDK command-line tools
@@ -93,25 +105,16 @@ jobs:
         ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager ~/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager
         ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/* ~/.buildozer/android/platform/android-sdk/tools/bin/ || true
         
-        # Create symlink for build-tools
-        # Create symlink for build-tools directory itself
         mkdir -p ~/.buildozer/android/platform/android-sdk
         ln -sf $ANDROID_HOME/build-tools ~/.buildozer/android/platform/android-sdk/build-tools
-        
-        # Also ensure platforms directory is symlinked
         ln -sf $ANDROID_HOME/platforms ~/.buildozer/android/platform/android-sdk/platforms || true
-        
-        # And platform-tools
         ln -sf $ANDROID_HOME/platform-tools ~/.buildozer/android/platform/android-sdk/platform-tools || true
         
-        # Export PATH to ensure tools are accessible
         export PATH=$ANDROID_HOME/build-tools/34.0.0:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
 
-        # Verify sdkmanager is accessible
         ls -la ~/.buildozer/android/platform/android-sdk/tools/bin/
         which sdkmanager || echo "sdkmanager not in PATH"
         
-        # Execute buildozer
         buildozer --accept-sdk-license android debug
         
     - name: Upload APK Artifact
