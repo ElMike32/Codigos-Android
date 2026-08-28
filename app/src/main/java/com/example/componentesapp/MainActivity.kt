@@ -96,20 +96,19 @@ fun PantallaPrincipal() {
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             try {
-                // REEMPLAZA ESTA URL CON TU URL REAL DE GOOGLE APPS SCRIPT QUE TERMINA EN /exec
                 val response = ApiClient.instance.getDataFromScript(
                     "https://script.google.com/macros/s/AKfycbxRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec"
                 )
                 apiData = response
                 
                 val unicos = response.componentes
-                    .filter { !it.material.isNullOrBlank() }
-                    .distinctBy { Pair(it.material!!.trim(), it.maquina.orEmpty().trim()) }
+                    .filter { it.material.isNotBlank() }
+                    .distinctBy { Pair(it.material.trim(), it.maquina.trim()) }
                     .map { 
                         MaterialItem(
-                            material = it.material!!.trim(), 
-                            maquina = it.maquina.orEmpty().trim(), 
-                            definicion = it.definicionReal
+                            material = it.material.trim(), 
+                            maquina = it.maquina.trim(), 
+                            definicion = it.definicion.trim()
                         ) 
                     }
 
@@ -193,7 +192,7 @@ fun PantallaPrincipal() {
             }
         }
 
-        // Encabezado del Material Seleccionado (Definición del Material: ej. R1M3 6C060...)
+        // Encabezado del Material Seleccionado (Muestra la definición del material R1M3...)
         materialSeleccionado?.let { mat ->
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F0FA)),
@@ -270,12 +269,12 @@ fun PantallaPrincipal() {
 @Composable
 fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
     val filtrados = componentes.filter { 
-        it.material.orEmpty().trim() == mat.material.trim() && 
-        it.maquina.orEmpty().trim() == mat.maquina.trim() 
+        it.material.trim() == mat.material.trim() && 
+        it.maquina.trim() == mat.maquina.trim() 
     }
 
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(180.dp), // Espaciado vertical holgado (250px aprox)
+        verticalArrangement = Arrangement.spacedBy(180.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp)
     ) {
         item {
@@ -291,10 +290,10 @@ fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
 
         items(filtrados) { comp ->
             // Título Grande: Código del componente (ej: 3991 / RZ30370908)
-            // Descripción Abajo: Descripción del componente (ej: Glycol TES 70001 / Sphere)
+            // Texto Abajo: Descripción (ej: Glycol TES 70001 / Sphere)
             TarjetaElemento(
-                tituloGrande = comp.codigoCompLimpio,
-                descripcion = comp.descCompLimpio,
+                tituloGrande = comp.codigo,
+                descripcion = comp.descripcion,
                 pieQr = comp.pieQrText,
                 datosQr = comp.qrData
             )
@@ -304,9 +303,8 @@ fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
 
 @Composable
 fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: MaterialItem) {
-    // Coincidencia flexible si el backend devuelve 'material' o 'materialRef'
-    val palletFiltrado = pallet.filter { it.matRef.equals(mat.material.trim(), ignoreCase = true) }
-    val singleFiltrado = single.filter { it.matRef.equals(mat.material.trim(), ignoreCase = true) }
+    val palletFiltrado = pallet.filter { it.materialRef.trim() == mat.material.trim() }
+    val singleFiltrado = single.filter { it.materialRef.trim() == mat.material.trim() }
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(180.dp),
@@ -325,8 +323,8 @@ fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: Ma
             }
             items(palletFiltrado) { itemP ->
                 TarjetaElemento(
-                    tituloGrande = itemP.codigoEmpaque,
-                    descripcion = itemP.descEmpaque,
+                    tituloGrande = itemP.codigo,
+                    descripcion = itemP.descripcion,
                     pieQr = itemP.pieQrTextPallet,
                     datosQr = itemP.toQrData(mat.maquina)
                 )
@@ -346,8 +344,8 @@ fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: Ma
             }
             items(singleFiltrado) { itemS ->
                 TarjetaElemento(
-                    tituloGrande = itemS.codigoEmpaque,
-                    descripcion = itemS.descEmpaque,
+                    tituloGrande = itemS.codigo,
+                    descripcion = itemS.descripcion,
                     pieQr = itemS.pieQrTextSingle,
                     datosQr = itemS.toQrData(mat.maquina)
                 )
@@ -357,7 +355,7 @@ fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: Ma
         if (palletFiltrado.isEmpty() && singleFiltrado.isEmpty()) {
             item {
                 Text(
-                    text = "No hay datos de empaquetado para este material.",
+                    text = "No hay empaques asociados a este material.",
                     fontSize = 14.sp,
                     color = Color.Gray,
                     modifier = Modifier.fillMaxWidth().padding(24.dp),
@@ -388,7 +386,6 @@ fun TarjetaElemento(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                // Título en Grande: Código del componente (ej. 3991)
                 Text(
                     text = if (tituloGrande.isNotBlank()) tituloGrande else "SIN CÓDIGO",
                     fontSize = 20.sp,
@@ -396,7 +393,6 @@ fun TarjetaElemento(
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                // Texto en Pequeño: Descripción (ej. Glycol TES 70001)
                 Text(
                     text = if (descripcion.isNotBlank()) descripcion else "Sin descripción",
                     fontSize = 14.sp,
