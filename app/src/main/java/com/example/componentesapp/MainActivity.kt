@@ -31,7 +31,6 @@ import kotlinx.coroutines.withContext
 import java.text.Normalizer
 import java.util.regex.Pattern
 
-// --- MODELO UI CON DEFINICIÓN NULABLE ---
 data class MaterialItem(
     val material: String,
     val maquina: String,
@@ -104,12 +103,12 @@ fun PantallaPrincipal() {
                 
                 val unicos = response.componentes
                     .filter { it.material.isNotBlank() }
-                    .distinctBy { Pair(it.material, it.maquina) }
+                    .distinctBy { Pair(it.material.trim(), it.maquina.trim()) }
                     .map { 
                         MaterialItem(
-                            material = it.material.orEmpty(), 
-                            maquina = it.maquina.orEmpty(), 
-                            definicion = it.definicion.orEmpty()
+                            material = it.material.trim(), 
+                            maquina = it.maquina.trim(), 
+                            definicion = it.definicion.orEmpty().trim()
                         ) 
                     }
 
@@ -195,7 +194,7 @@ fun PantallaPrincipal() {
             }
         }
 
-        // Encabezado del Material Seleccionado
+        // Encabezado del Material Seleccionado (Definición General del Material)
         materialSeleccionado?.let { mat ->
             val defTxt = mat.definicion.orEmpty()
             Card(
@@ -242,7 +241,7 @@ fun PantallaPrincipal() {
             }
         }
 
-        // Pestañas
+        // Tabs
         TabRow(selectedTabIndex = tabSeleccionada, containerColor = Color.White) {
             Tab(selected = tabSeleccionada == 0, onClick = { tabSeleccionada = 0 }) {
                 Text("Componentes", modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold)
@@ -272,11 +271,13 @@ fun PantallaPrincipal() {
 // --- VISTAS ---
 @Composable
 fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
-    val filtrados = componentes.filter { it.material == mat.material && it.maquina == mat.maquina }
+    val filtrados = componentes.filter { 
+        it.material.trim() == mat.material.trim() && it.maquina.trim() == mat.maquina.trim() 
+    }
 
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(32.dp),
-        contentPadding = PaddingValues(bottom = 60.dp)
+        verticalArrangement = Arrangement.spacedBy(180.dp), // Espaciado amplio (~6 veces mayor)
+        contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp)
     ) {
         item {
             Text(
@@ -290,8 +291,9 @@ fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
         }
 
         items(filtrados) { comp ->
+            // En grande va el CÓDIGO del componente. Debajo va su DESCRIPCIÓN.
             TarjetaElemento(
-                codigo = comp.codigo,
+                tituloGrande = comp.codigo,
                 descripcion = comp.descripcion,
                 pieQr = comp.pieQrText,
                 datosQr = comp.qrData
@@ -302,12 +304,13 @@ fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
 
 @Composable
 fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: MaterialItem) {
-    val palletFiltrado = pallet.filter { it.materialRef == mat.material }
-    val singleFiltrado = single.filter { it.materialRef == mat.material }
+    // Comparación sin espacios adicionales para evitar falsos vacíos
+    val palletFiltrado = pallet.filter { it.materialRef.trim() == mat.material.trim() }
+    val singleFiltrado = single.filter { it.materialRef.trim() == mat.material.trim() }
 
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(32.dp),
-        contentPadding = PaddingValues(bottom = 60.dp)
+        verticalArrangement = Arrangement.spacedBy(180.dp), // Espaciado amplio (~6 veces mayor)
+        contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp)
     ) {
         if (palletFiltrado.isNotEmpty()) {
             item {
@@ -322,7 +325,7 @@ fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: Ma
             }
             items(palletFiltrado) { itemP ->
                 TarjetaElemento(
-                    codigo = itemP.codigo,
+                    tituloGrande = itemP.codigo,
                     descripcion = itemP.descripcion,
                     pieQr = itemP.pieQrTextPallet,
                     datosQr = itemP.toQrData(mat.maquina)
@@ -343,7 +346,7 @@ fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: Ma
             }
             items(singleFiltrado) { itemS ->
                 TarjetaElemento(
-                    codigo = itemS.codigo,
+                    tituloGrande = itemS.codigo,
                     descripcion = itemS.descripcion,
                     pieQr = itemS.pieQrTextSingle,
                     datosQr = itemS.toQrData(mat.maquina)
@@ -355,7 +358,7 @@ fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: Ma
 
 @Composable
 fun TarjetaElemento(
-    codigo: String,
+    tituloGrande: String,
     descripcion: String,
     pieQr: String,
     datosQr: String
@@ -373,13 +376,15 @@ fun TarjetaElemento(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                // Título en GRANDE: Código del componente
                 Text(
-                    text = codigo,
+                    text = tituloGrande,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+                // Descripción del componente debajo
                 Text(
                     text = descripcion,
                     fontSize = 14.sp,
