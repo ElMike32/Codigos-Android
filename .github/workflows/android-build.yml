@@ -23,30 +23,26 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Overwrite AndroidManifest cleanly
+      # Sobrescribe AndroidManifest.xml asegurando sintaxis pura y comillas ASCII válidas
+      - name: Overwrite AndroidManifest Cleanly
         run: |
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/android"
-              package="com.example.componentesapp">
-
-              <uses-permission android:name="android.permission.INTERNET" />
-
-              <application
-                  android:allowBackup="true"
-                  android:label="Visor Componentes">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-
-          </manifest>
-          EOF
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/AndroidManifest.xml
+          printf '%s\n' '<manifest xmlns:android="http://schemas.android.com/apk/android">' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '    <uses-permission android:name="android.permission.INTERNET" />' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '    <application' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '        android:allowBackup="true"' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '        android:label="Visor Componentes"' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '        android:supportsRtl="true">' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '        <activity' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '            android:name=".MainActivity"' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '            android:exported="true">' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '            <intent-filter>' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '                <action android:name="android.intent.action.MAIN" />' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '                <category android:name="android.intent.category.LAUNCHER" />' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '            </intent-filter>' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '        </activity>' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '    </application>' >> app/src/main/AndroidManifest.xml
+          printf '%s\n' '</manifest>' >> app/src/main/AndroidManifest.xml
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
