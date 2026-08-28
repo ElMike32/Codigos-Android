@@ -5,12 +5,12 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch: # Permite ejecutar la compilación manualmente desde la web de GitHub
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30 # Evita timeouts prematuros durante la compilación
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Repository
@@ -25,12 +25,10 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
-        with:
-          generate-job-summary: true
 
-      # Genera o repara automáticamente el wrapper de Gradle si falta el archivo ejecutable o el jar
-      - name: Generate Gradle Wrapper
-        run: gradle wrapper
+      # Forzar el uso de Gradle 8.5 en lugar de la versión 9.x
+      - name: Force Compatible Gradle Version
+        run: gradle wrapper --gradle-version 8.5
 
       - name: Grant Execute Permission for Gradle Wrapper
         run: chmod +x gradlew
