@@ -23,26 +23,10 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      # Sobrescribe AndroidManifest.xml asegurando sintaxis pura y comillas ASCII válidas
-      - name: Overwrite AndroidManifest Cleanly
+      # Escribe el Manifest usando base64 para evitar corrupción de comillas en la interfaz de GitHub
+      - name: Generate Clean AndroidManifest
         run: |
-          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' > app/src/main/AndroidManifest.xml
-          printf '%s\n' '<manifest xmlns:android="http://schemas.android.com/apk/android">' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '    <uses-permission android:name="android.permission.INTERNET" />' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '    <application' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '        android:allowBackup="true"' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '        android:label="Visor Componentes"' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '        android:supportsRtl="true">' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '        <activity' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '            android:name=".MainActivity"' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '            android:exported="true">' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '            <intent-filter>' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '                <action android:name="android.intent.action.MAIN" />' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '                <category android:name="android.intent.category.LAUNCHER" />' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '            </intent-filter>' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '        </activity>' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '    </application>' >> app/src/main/AndroidManifest.xml
-          printf '%s\n' '</manifest>' >> app/src/main/AndroidManifest.xml
+          echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCI+CgogICAgPHVzZXMtcGVybWlzc2lvbiBhbmRyb2lkOm5hbWU9ImFuZHJvaWQucGVybWlzc2lvbi5JTlRFUk5FVCIgLz4KCiAgICA8YXBwbGljYXRpb24KICAgICAgICBhbmRyb2lkOmFsbG93QmFja3VwPSJ0cnVlIgogICAgICAgIGFuZHJvaWQ6bGFiZWw9IlZpc29yIENvbXBvbmVudGVzIgogICAgICAgIGFuZHJvaWQ6c3VwcG9ydHNSdGw9InRydWUiPgogICAgICAgIDxhY3Rpdml0eQogICAgICAgICAgICBhbmRyb2lkOm5hbWU9Ii5NYWluQWN0aXZpdHkiCiAgICAgICAgICAgIGFuZHJvaWQ6ZXhwb3J0ZWQ9InRydWUiPgogICAgICAgICAgICA8aW50ZW50LWZpbHRlcj4KICAgICAgICAgICAgICAgIDxhY3Rpb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5hY3Rpb24uTUFJTiIgLz4KICAgICAgICAgICAgICAgIDxjYXRlZ29yeSBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmNhdGVnb3J5LkxBVU5DSEVSIiAvPgogICAgICAgICAgICA8L2ludGVudC1maWx0ZXI+CiAgICAgICAgPC9hY3Rpdml0eT4KICAgIDwvYXBwbGljYXRpb24+Cgo8L21hbmlmZXN0Pg==" | base64 -d > app/src/main/AndroidManifest.xml
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
