@@ -17,8 +17,8 @@ source.include_exts = py,png,jpg,kv,atlas,ico,ttf
 # (str) Application versioning
 version = 1.0.0
 
-# (list) Application requirements - FIXED: Use Cython 3.1.0+ for Python 3.14 compatibility
-requirements = python3,cython>=3.1.0,kivy==2.1.0,requests,certifi,urllib3
+# (list) Application requirements - Use compatible Cython version
+requirements = python3,cython>=3.0.0,kivy==2.1.0,requests,certifi,urllib3
 
 # (str) Supported orientation
 orientation = portrait
