@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.text.Normalizer
 import java.util.regex.Pattern
@@ -83,7 +85,7 @@ fun generarBitmapQR(datos: String): Bitmap? {
 @Composable
 fun PantallaPrincipal() {
     var apiData by remember { mutableStateOf<ApiResponse?>(null) }
-    var estadoConexion by remember { mutableStateOf("Cargando datos remotos...") }
+    var estadoConexion by remember { mutableStateOf("Conectando con Google Apps Script...") }
     var estaCargando by remember { mutableStateOf(true) }
 
     var listaMateriales by remember { mutableStateOf<List<MaterialItem>>(emptyList()) }
@@ -93,42 +95,62 @@ fun PantallaPrincipal() {
 
     var tabSeleccionada by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(apiData) {
+        if (apiData != null) return@LaunchedEffect
+
         withContext(Dispatchers.IO) {
-            try {
-                val response = ApiClient.instance.getDataFromScript(
-                    "https://script.google.com/macros/s/AKfycbxRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec"
-                )
-                apiData = response
-                
-                val unicos = response.componentes
-                    .filter { it.material.isNotBlank() }
-                    .distinctBy { Pair(it.material.trim(), it.maquina.trim()) }
-                    .map { 
-                        MaterialItem(
-                            material = it.material.trim(), 
-                            maquina = it.maquina.trim(), 
-                            definicion = it.definicion.trim()
-                        ) 
+            val maxIntentos = 3
+
+            for (intento in 1..maxIntentos) {
+                try {
+                    withContext(Dispatchers.Main) {
+                        estadoConexion = if (intento == 1) "Sincronizando datos..." else "Despertando servidor (Intento $intento/$maxIntentos)..."
                     }
 
-                listaMateriales = unicos
-                if (unicos.isNotEmpty()) {
-                    materialSeleccionado = unicos.first()
-                    textoBusqueda = "${unicos.first().material} (${unicos.first().maquina})"
+                    val response = ApiClient.instance.getDataFromScript(
+                        "https://script.google.com/macros/s/AKfycbzQpQhXU3sJ2_2x_REMPLAZA_CON_TU_ID/exec"
+                    )
+
+                    apiData = response
+                    
+                    val unicos = response.componentes
+                        .filter { it.material.isNotBlank() }
+                        .distinctBy { Pair(it.material.trim(), it.maquina.trim()) }
+                        .map { 
+                            MaterialItem(
+                                material = it.material.trim(), 
+                                maquina = it.maquina.trim(), 
+                                definicion = it.definicion.trim()
+                            ) 
+                        }
+
+                    listaMateriales = unicos
+                    if (unicos.isNotEmpty()) {
+                        materialSeleccionado = unicos.first()
+                        textoBusqueda = "${unicos.first().material} (${unicos.first().maquina})"
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        estadoConexion = "● Datos sincronizados"
+                        estaCargando = false
+                    }
+                    break
+                } catch (e: Exception) {
+                    if (intento < maxIntentos) {
+                        delay(2000)
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            estadoConexion = "Error de conexión: ${e.localizedMessage}"
+                            estaCargando = false
+                        }
+                    }
                 }
-                
-                estadoConexion = "● Datos sincronizados"
-                estaCargando = false
-            } catch (e: Exception) {
-                estadoConexion = "Error de conexión: ${e.localizedMessage}"
-                estaCargando = false
             }
         }
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-        // Buscador Dinámico
+        // Buscador Dinámico con Limpieza Automática al Enfocar
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(2.dp),
@@ -142,7 +164,15 @@ fun PantallaPrincipal() {
                         mostrarSugerencias = query.isNotBlank()
                     },
                     label = { Text("🔍 Buscar Material o Máquina...") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { focusState ->
+                            // Al hacer clic/tocar el buscador, borra el texto automáticamente
+                            if (focusState.isFocused) {
+                                textoBusqueda = ""
+                                mostrarSugerencias = false
+                            }
+                        },
                     singleLine = true
                 )
 
@@ -192,7 +222,7 @@ fun PantallaPrincipal() {
             }
         }
 
-        // Encabezado del Material Seleccionado (Muestra la definición del material R1M3...)
+        // Encabezado del Material Seleccionado
         materialSeleccionado?.let { mat ->
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F0FA)),
@@ -289,8 +319,6 @@ fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
         }
 
         items(filtrados) { comp ->
-            // Título Grande: Código del componente (ej: 3991 / RZ30370908)
-            // Texto Abajo: Descripción (ej: Glycol TES 70001 / Sphere)
             TarjetaElemento(
                 tituloGrande = comp.codigo,
                 descripcion = comp.descripcion,
