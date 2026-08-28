@@ -31,24 +31,7 @@ import kotlinx.coroutines.withContext
 import java.text.Normalizer
 import java.util.regex.Pattern
 
-// --- MODELOS DE DATOS ---
-data class Componente(
-    val codigo: String,
-    val descripcion: String,
-    val cantidad: String,
-    val maquina: String,
-    val material: String,
-    val definicion: String = "",
-    val esTipoX: Boolean
-)
-
-data class Empaque(
-    val codigo: String,
-    val descripcion: String,
-    val cantidad: String,
-    val materialRef: String
-)
-
+// Modelo UI auxiliar para el dropdown de búsqueda
 data class MaterialItem(
     val material: String,
     val maquina: String,
@@ -71,42 +54,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// --- FUNCIONES AUXILIARES DE FORMATO ---
-fun limpiarEntero(valStr: String): String {
-    val s = valStr.trim()
-    if (s.isEmpty() || s.equals("nan", ignoreCase = true) || s.equals("none", ignoreCase = true)) return ""
-    return try {
-        s.toDouble().toInt().toString()
-    } catch (e: Exception) {
-        s
-    }
-}
-
+// --- UTILIDADES ---
 fun normalizarTexto(texto: String): String {
     val temp = Normalizer.normalize(texto.lowercase(), Normalizer.Form.NFD)
     val pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+")
     return pattern.matcher(temp).replaceAll("")
-}
-
-fun obtenerTextoCantidadEtiqueta(qty: String): String {
-    val q = limpiarEntero(qty)
-    if (q.isEmpty() || q == "0") return "1 PALLET"
-    return try {
-        val num = q.toInt()
-        if (num == 1) "1 CAJA" else "$num PIEZAS"
-    } catch (e: Exception) {
-        "$q PIEZAS"
-    }
-}
-
-fun obtenerTextoCantidadSingle(qty: String): String {
-    val q = limpiarEntero(qty)
-    return try {
-        val num = q.toInt()
-        "$num CAJAS"
-    } catch (e: Exception) {
-        if (q.isNotEmpty()) "$q CAJAS" else "0 CAJAS"
-    }
 }
 
 fun generarBitmapQR(datos: String): Bitmap? {
@@ -171,7 +123,7 @@ fun PantallaPrincipal() {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-        // Buscador Dinámico
+        // 1. Buscador Dinámico
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(2.dp),
@@ -235,7 +187,7 @@ fun PantallaPrincipal() {
             }
         }
 
-        // Encabezado del Material Seleccionado
+        // 2. Encabezado del Material Seleccionado
         materialSeleccionado?.let { mat ->
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F0FA)),
@@ -281,7 +233,7 @@ fun PantallaPrincipal() {
             }
         }
 
-        // Tabs
+        // 3. Pestañas
         TabRow(selectedTabIndex = tabSeleccionada, containerColor = Color.White) {
             Tab(selected = tabSeleccionada == 0, onClick = { tabSeleccionada = 0 }) {
                 Text("Componentes", modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold)
@@ -308,9 +260,9 @@ fun PantallaPrincipal() {
     }
 }
 
-// --- VISTAS Y TARJETAS ---
+// --- VISTAS ---
 @Composable
-fun VistaComponentes(componentes: List<Componente>, mat: MaterialItem) {
+fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
     val filtrados = componentes.filter { it.material == mat.material && it.maquina == mat.maquina }
 
     LazyColumn(
@@ -329,26 +281,18 @@ fun VistaComponentes(componentes: List<Componente>, mat: MaterialItem) {
         }
 
         items(filtrados) { comp ->
-            val cantLimpia = limpiarEntero(comp.cantidad)
-            val datosQr = if (comp.esTipoX) {
-                "5X${comp.codigo}/$cantLimpia/${comp.maquina}/930"
-            } else {
-                "/${comp.codigo}/$cantLimpia/${comp.maquina}"
-            }
-            val textoPie = obtenerTextoCantidadEtiqueta(comp.cantidad)
-
             TarjetaElemento(
                 codigo = comp.codigo,
                 descripcion = comp.descripcion,
-                pieQr = textoPie,
-                datosQr = datosQr
+                pieQr = comp.pieQrText,
+                datosQr = comp.qrData
             )
         }
     }
 }
 
 @Composable
-fun VistaEmpaquetado(pallet: List<Empaque>, single: List<Empaque>, mat: MaterialItem) {
+fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: MaterialItem) {
     val palletFiltrado = pallet.filter { it.materialRef == mat.material }
     val singleFiltrado = single.filter { it.materialRef == mat.material }
 
@@ -368,15 +312,11 @@ fun VistaEmpaquetado(pallet: List<Empaque>, single: List<Empaque>, mat: Material
                 )
             }
             items(palletFiltrado) { itemP ->
-                val cantLimpia = limpiarEntero(itemP.cantidad)
-                val datosQr = "1X${itemP.codigo}/$cantLimpia/${mat.maquina}"
-                val textoPie = "1 PALLET"
-
                 TarjetaElemento(
                     codigo = itemP.codigo,
                     descripcion = itemP.descripcion,
-                    pieQr = textoPie,
-                    datosQr = datosQr
+                    pieQr = itemP.pieQrTextPallet,
+                    datosQr = itemP.toQrData(mat.maquina)
                 )
             }
         }
@@ -393,15 +333,11 @@ fun VistaEmpaquetado(pallet: List<Empaque>, single: List<Empaque>, mat: Material
                 )
             }
             items(singleFiltrado) { itemS ->
-                val cantLimpia = limpiarEntero(itemS.cantidad)
-                val datosQr = "1X${itemS.codigo}/$cantLimpia/${mat.maquina}"
-                val textoPie = obtenerTextoCantidadSingle(itemS.cantidad)
-
                 TarjetaElemento(
                     codigo = itemS.codigo,
                     descripcion = itemS.descripcion,
-                    pieQr = textoPie,
-                    datosQr = datosQr
+                    pieQr = itemS.pieQrTextSingle,
+                    datosQr = itemS.toQrData(mat.maquina)
                 )
             }
         }
