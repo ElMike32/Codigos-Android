@@ -51,7 +51,7 @@ android.archs = arm64-v8a,armeabi-v7a
 android.enable_androidx = True
 
 # PYTHON VERSION FOR ANDROID BUILD - IMPORTANT
-android.python_version = 3.9
+android.python_version = 3.12
 
 # CRITICAL: Fix for NDK r25b header conflicts
 # These flags prevent mixing host system headers with NDK sysroot
