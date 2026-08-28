@@ -24,7 +24,7 @@ import com.google.zxing.qrcode.QRCodeWriter
 import kotlinx.coroutines.launch
 
 // COLOCA AQUÍ LA URL QUE TE DIO APPS SCRIPT AL IMPLEMENTAR
-const val URL_APPS_SCRIPT = "https://script.google.com/macros/s/TU_SCRIPT_ID_AQUI/exec"
+const val URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbxRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
