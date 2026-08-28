@@ -31,11 +31,11 @@ import kotlinx.coroutines.withContext
 import java.text.Normalizer
 import java.util.regex.Pattern
 
-// Modelo UI auxiliar para el dropdown de búsqueda
+// --- MODELO UI CON DEFINICIÓN NULABLE ---
 data class MaterialItem(
     val material: String,
     val maquina: String,
-    val definicion: String
+    val definicion: String? = ""
 )
 
 class MainActivity : ComponentActivity() {
@@ -98,14 +98,20 @@ fun PantallaPrincipal() {
         withContext(Dispatchers.IO) {
             try {
                 val response = ApiClient.instance.getDataFromScript(
-                    "https://script.google.com/macros/s/AKfycbxRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec"
+                    "https://script.google.com/macros/s/AKfycbzQpQhXU3sJ2_2x_REMPLAZA_CON_TU_ID/exec"
                 )
                 apiData = response
                 
                 val unicos = response.componentes
                     .filter { it.material.isNotBlank() }
                     .distinctBy { Pair(it.material, it.maquina) }
-                    .map { MaterialItem(it.material, it.maquina, it.definicion) }
+                    .map { 
+                        MaterialItem(
+                            material = it.material.orEmpty(), 
+                            maquina = it.maquina.orEmpty(), 
+                            definicion = it.definicion.orEmpty()
+                        ) 
+                    }
 
                 listaMateriales = unicos
                 if (unicos.isNotEmpty()) {
@@ -123,7 +129,7 @@ fun PantallaPrincipal() {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-        // 1. Buscador Dinámico
+        // Buscador Dinámico
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(2.dp),
@@ -144,7 +150,8 @@ fun PantallaPrincipal() {
                 AnimatedVisibility(visible = mostrarSugerencias) {
                     val queryNorm = normalizarTexto(textoBusqueda)
                     val coincidencias = listaMateriales.filter { item ->
-                        val eval = "${item.material} ${item.maquina} ${item.definicion}"
+                        val defSegura = item.definicion.orEmpty()
+                        val eval = "${item.material} ${item.maquina} $defSegura"
                         normalizarTexto(eval).contains(queryNorm)
                     }.take(15)
 
@@ -155,6 +162,7 @@ fun PantallaPrincipal() {
                     ) {
                         LazyColumn {
                             items(coincidencias) { item ->
+                                val defTxt = item.definicion.orEmpty()
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -167,7 +175,7 @@ fun PantallaPrincipal() {
                                 ) {
                                     Text(
                                         text = "${item.material}  │  Máq: ${item.maquina}" + 
-                                                if (item.definicion.isNotBlank()) " (${item.definicion})" else "",
+                                                if (defTxt.isNotBlank()) " ($defTxt)" else "",
                                         fontSize = 13.sp,
                                         color = Color.Black
                                     )
@@ -187,8 +195,9 @@ fun PantallaPrincipal() {
             }
         }
 
-        // 2. Encabezado del Material Seleccionado
+        // Encabezado del Material Seleccionado
         materialSeleccionado?.let { mat ->
+            val defTxt = mat.definicion.orEmpty()
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F0FA)),
                 shape = RoundedCornerShape(8.dp),
@@ -207,7 +216,7 @@ fun PantallaPrincipal() {
                             color = Color(0xFF1F4E79)
                         )
                         Text(
-                            text = if (mat.definicion.isNotBlank()) mat.definicion else "Sin descripción registrada",
+                            text = if (defTxt.isNotBlank()) defTxt else "Sin descripción registrada",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black,
@@ -233,7 +242,7 @@ fun PantallaPrincipal() {
             }
         }
 
-        // 3. Pestañas
+        // Pestañas
         TabRow(selectedTabIndex = tabSeleccionada, containerColor = Color.White) {
             Tab(selected = tabSeleccionada == 0, onClick = { tabSeleccionada = 0 }) {
                 Text("Componentes", modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold)
