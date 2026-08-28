@@ -1,5 +1,7 @@
 package com.example.componentesapp
 
+import com.google.gson.annotations.SerializedName
+
 data class ApiResponse(
     val componentes: List<ComponenteDTO> = emptyList(),
     val pallet: List<EmpaqueDTO> = emptyList(),
@@ -7,52 +9,84 @@ data class ApiResponse(
 )
 
 data class ComponenteDTO(
-    val codigo: String,
-    val descripcion: String,
-    val cantidad: String,
-    val maquina: String,
-    val material: String,
-    val definicion: String = "",
-    val esTipoX: Boolean
+    @SerializedName("componente") val codigoComponente: String? = "",
+    @SerializedName("descripcion") val descripcionComponente: String? = "",
+    @SerializedName("cantidad") val cantidad: String? = "",
+    @SerializedName("maquina") val maquina: String? = "",
+    @SerializedName("material") val material: String? = "",
+    @SerializedName("definición") val definicionMaterialAlt: String? = null,
+    @SerializedName("definicion") val definicionMaterial: String? = null,
+    @SerializedName("X?") val esTipoXAlt: Boolean? = false,
+    @SerializedName("esTipoX") val esTipoX: Boolean? = false
 ) {
-    // Formato exacto de QR según la bandera esTipoX
+    // Definición general del material (R1M3...)
+    val definicionReal: String
+        get() = (definicionMaterial ?: definicionMaterialAlt).orEmpty().trim()
+
+    val esX: Boolean
+        get() = (esTipoX ?: esTipoXAlt) ?: false
+
+    val codigoCompLimpio: String
+        get() = codigoComponente.orEmpty().trim()
+
+    val descCompLimpio: String
+        get() = descripcionComponente.orEmpty().trim()
+
+    val cantLimpia: String
+        get() {
+            val q = cantidad.orEmpty().trim()
+            return if (q.endsWith(".0")) q.dropLast(2) else q
+        }
+
+    // QR usa la columna 'componente' (ej. 3991)
     val qrData: String
         get() {
-            val q = cantidad.trim().let { if (it.endsWith(".0")) it.dropLast(2) else it }
-            return if (esTipoX) "5X$codigo/$q/$maquina/930" else "/$codigo/$q/$maquina"
+            val maq = maquina.orEmpty().trim()
+            return if (esX) "5X$codigoCompLimpio/$cantLimpia/$maq/930" else "/$codigoCompLimpio/$cantLimpia/$maq"
         }
 
     val pieQrText: String
         get() {
-            val q = cantidad.trim().let { if (it.endsWith(".0")) it.dropLast(2) else it }
-            if (q.isEmpty() || q == "0") return "1 PALLET"
-            return when (val num = q.toIntOrNull()) {
+            if (cantLimpia.isEmpty() || cantLimpia == "0") return "1 PALLET"
+            return when (val num = cantLimpia.toIntOrNull()) {
                 1 -> "1 CAJA"
                 in 2..Int.MAX_VALUE -> "$num PIEZAS"
-                else -> "$q PIEZAS"
+                else -> "$cantLimpia PIEZAS"
             }
         }
 }
 
 data class EmpaqueDTO(
-    val codigo: String,
-    val descripcion: String,
-    val cantidad: String,
-    val materialRef: String
+    @SerializedName("codigo") val codigoAlt: String? = null,
+    @SerializedName("componente") val codigoComp: String? = null,
+    @SerializedName("descripcion") val descripcion: String? = "",
+    @SerializedName("cantidad") val cantidad: String? = "",
+    @SerializedName("materialRef") val materialRefAlt: String? = null,
+    @SerializedName("material") val material: String? = null
 ) {
-    // Agregado el prefijo '1X' requerido por el estándar del Python
-    fun toQrData(maquina: String): String {
-        val q = cantidad.trim().let { if (it.endsWith(".0")) it.dropLast(2) else it }
-        return "1X$codigo/$q/$maquina"
-    }
+    val codigoEmpaque: String
+        get() = (codigoAlt ?: codigoComp).orEmpty().trim()
+
+    val matRef: String
+        get() = (materialRefAlt ?: material).orEmpty().trim()
+
+    val descEmpaque: String
+        get() = descripcion.orEmpty().trim()
+
+    val cantLimpia: String
+        get() {
+            val q = cantidad.orEmpty().trim()
+            return if (q.endsWith(".0")) q.dropLast(2) else q
+        }
+
+    fun toQrData(maquina: String): String = "1X$codigoEmpaque/$cantLimpia/${maquina.trim()}"
 
     val pieQrTextPallet: String = "1 PALLET"
 
     val pieQrTextSingle: String
         get() {
-            val q = cantidad.trim().let { if (it.endsWith(".0")) it.dropLast(2) else it }
-            return when (val num = q.toIntOrNull()) {
-                null -> if (q.isNotEmpty()) "$q CAJAS" else "0 CAJAS"
+            return when (val num = cantLimpia.toIntOrNull()) {
+                null -> if (cantLimpia.isNotEmpty()) "$cantLimpia CAJAS" else "0 CAJAS"
                 else -> "$num CAJAS"
             }
         }
