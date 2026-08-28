@@ -23,10 +23,34 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Overwrite AndroidManifest cleanly
+        run: |
+          cat << 'EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/android"
+              package="com.example.componentesapp">
+
+              <uses-permission android:name="android.permission.INTERNET" />
+
+              <application
+                  android:allowBackup="true"
+                  android:label="Visor Componentes">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+
+          </manifest>
+          EOF
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      # Forzar el uso de Gradle 8.5 en lugar de la versión 9.x
       - name: Force Compatible Gradle Version
         run: gradle wrapper --gradle-version 8.5
 
