@@ -6,6 +6,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import retrofit2.http.Url
+import java.util.concurrent.TimeUnit
 
 interface ApiService {
     @GET
@@ -13,13 +14,16 @@ interface ApiService {
 }
 
 object ApiClient {
-    // Configurar OkHttpClient para seguir redirecciones de Google Apps Script (HTTP 302 / 307)
+    // Configurar OkHttpClient con 60 segundos de Timeout para evitar el error de conexión
     private val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
+        .retryOnConnectionFailure(true) // Reintentar automáticamente en fallos temporales de red
         .build()
 
-    // Configurar Gson en modo permisivo (lenient) por si la respuesta viene con caracteres o envoltorios
     private val gson = GsonBuilder()
         .setLenient()
         .create()
