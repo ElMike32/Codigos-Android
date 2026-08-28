@@ -95,22 +95,20 @@ fun PantallaPrincipal() {
     var materialSeleccionado by remember { mutableStateOf<MaterialItem?>(null) }
     var textoBusqueda by remember { mutableStateOf("") }
     
-    // Estado para controlar si el buscador está expandido o es solo un icono
     var buscadorExpandido by remember { mutableStateOf(false) }
     var mostrarSugerencias by remember { mutableStateOf(false) }
 
     var tabSeleccionada by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(apiData) {
-        if (apiData != null) return@LaunchedEffect
-
+    // Descarga ÚNICA al abrir la app. No se vuelve a lanzar al buscar.
+    LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             val maxIntentos = 3
 
             for (intento in 1..maxIntentos) {
                 try {
                     withContext(Dispatchers.Main) {
-                        estadoConexion = if (intento == 1) "Sincronizando..." else "Reintentando ($intento/$maxIntentos)..."
+                        estadoConexion = if (intento == 1) "Cargando..." else "Reintentando ($intento)..."
                     }
 
                     // REEMPLAZA ESTA URL CON TU URL REAL DE GOOGLE APPS SCRIPT QUE TERMINA EN /exec
@@ -143,10 +141,10 @@ fun PantallaPrincipal() {
                     break
                 } catch (e: Exception) {
                     if (intento < maxIntentos) {
-                        delay(2000)
+                        delay(1500)
                     } else {
                         withContext(Dispatchers.Main) {
-                            estadoConexion = "Error de conexión: ${e.localizedMessage}"
+                            estadoConexion = "Error de red"
                             estaCargando = false
                         }
                     }
@@ -155,48 +153,29 @@ fun PantallaPrincipal() {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(10.dp)) {
-        // 1. Barra Superior con Buscador Colapsable
-        Card(
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(2.dp),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
-        ) {
-            Column(modifier = Modifier.padding(8.dp)) {
-                if (!buscadorExpandido) {
-                    // Modo Icono: Ocupa mínimo espacio vertical
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = estadoConexion,
-                            fontSize = 11.sp,
-                            color = if (estadoConexion.contains("●")) Color(0xFF2E7D32) else Color.Red
-                        )
-                        IconButton(onClick = { 
-                            buscadorExpandido = true 
-                            textoBusqueda = ""
-                        }) {
-                            Icon(Icons.Default.Search, contentDescription = "Buscar Material", tint = Color(0xFF1F4E79))
-                        }
-                    }
-                } else {
-                    // Modo Expandido: Cuadro de búsqueda activo
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 4.dp)) {
+        
+        // 1. Buscador Desplegable Compacto
+        if (buscadorExpandido) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(2.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(6.dp)) {
                     OutlinedTextField(
                         value = textoBusqueda,
                         onValueChange = { query ->
                             textoBusqueda = query
                             mostrarSugerencias = query.isNotBlank()
                         },
-                        label = { Text("Escriba Material o Máquina...") },
+                        label = { Text("Buscar Material o Máquina...") },
                         trailingIcon = {
                             IconButton(onClick = { 
                                 buscadorExpandido = false 
                                 mostrarSugerencias = false
                             }) {
-                                Icon(Icons.Default.Close, contentDescription = "Cerrar Búsqueda")
+                                Icon(Icons.Default.Close, contentDescription = "Cerrar")
                             }
                         },
                         modifier = Modifier
@@ -217,7 +196,7 @@ fun PantallaPrincipal() {
                         }.take(15)
 
                         Card(
-                            modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).padding(top = 4.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp).padding(top = 4.dp),
                             border = BorderStroke(1.dp, Color(0xFF1F4E79)),
                             colors = CardDefaults.cardColors(containerColor = Color.White)
                         ) {
@@ -249,48 +228,71 @@ fun PantallaPrincipal() {
             }
         }
 
-        // 2. Encabezado del Material Seleccionado
+        // 2. Encabezado Único e Integrado de Material (Compacto)
         materialSeleccionado?.let { mat ->
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F0FA)),
                 shape = RoundedCornerShape(6.dp),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "DESCRIPCIÓN:",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F4E79)
+                            text = estadoConexion,
+                            fontSize = 10.sp,
+                            color = if (estadoConexion.contains("●")) Color(0xFF2E7D32) else Color.Red
                         )
-                        Text(
-                            text = if (mat.definicion.isNotBlank()) mat.definicion else "Sin descripción registrada",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        IconButton(
+                            onClick = { 
+                                buscadorExpandido = !buscadorExpandido
+                                textoBusqueda = ""
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color(0xFF1F4E79))
+                        }
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "Máquina: ${mat.maquina}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F4E79)
-                        )
-                        Text(
-                            text = "Material: ${mat.material}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF111111)
-                        )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "DESCRIPCIÓN:",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F4E79)
+                            )
+                            Text(
+                                text = if (mat.definicion.isNotBlank()) mat.definicion else "Sin descripción registrada",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "Máquina: ${mat.maquina}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F4E79)
+                            )
+                            Text(
+                                text = "Material: ${mat.material}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF111111)
+                            )
+                        }
                     }
                 }
             }
@@ -299,14 +301,14 @@ fun PantallaPrincipal() {
         // 3. Pestañas
         TabRow(selectedTabIndex = tabSeleccionada, containerColor = Color.White) {
             Tab(selected = tabSeleccionada == 0, onClick = { tabSeleccionada = 0 }) {
-                Text("Componentes", modifier = Modifier.padding(8.dp), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Componentes", modifier = Modifier.padding(6.dp), fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
             Tab(selected = tabSeleccionada == 1, onClick = { tabSeleccionada = 1 }) {
-                Text("Empaquetado", modifier = Modifier.padding(8.dp), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Empaquetado", modifier = Modifier.padding(6.dp), fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         if (estaCargando) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -323,7 +325,7 @@ fun PantallaPrincipal() {
     }
 }
 
-// --- VISTAS ---
+// --- VISTAS DE TARJETAS ---
 @Composable
 fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
     val filtrados = componentes.filter { 
@@ -332,16 +334,16 @@ fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
     }
 
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(180.dp), // Espaciado de 180dp para evitar lecturas accidentales del escáner
-        contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp)
+        verticalArrangement = Arrangement.spacedBy(180.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 100.dp)
     ) {
         item {
             Text(
                 text = "━ COMPONENTES DE MÁQUINA ━",
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1F4E79),
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                 textAlign = TextAlign.Center
             )
         }
@@ -363,17 +365,17 @@ fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: Ma
     val singleFiltrado = single.filter { it.materialRef.trim() == mat.material.trim() }
 
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(180.dp), // Espaciado de 180dp para escáner
-        contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp)
+        verticalArrangement = Arrangement.spacedBy(180.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 100.dp)
     ) {
         if (palletFiltrado.isNotEmpty()) {
             item {
                 Text(
                     text = "━ PALLET PACKAGING ━",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1F4E79),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                     textAlign = TextAlign.Center
                 )
             }
@@ -391,10 +393,10 @@ fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: Ma
             item {
                 Text(
                     text = "━ SINGLE PACKAGING ━",
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1F4E79),
-                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp),
                     textAlign = TextAlign.Center
                 )
             }
@@ -425,12 +427,11 @@ fun TarjetaElemento(
         shape = RoundedCornerShape(6.dp)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            modifier = Modifier.padding(10.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                // Si el título viene vacío, se deja en blanco sin mostrar textos estáticos
                 Text(
                     text = tituloGrande.trim(),
                     fontSize = 18.sp,
@@ -438,7 +439,7 @@ fun TarjetaElemento(
                     color = Color.Black
                 )
                 if (descripcion.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = descripcion.trim(),
                         fontSize = 13.sp,
