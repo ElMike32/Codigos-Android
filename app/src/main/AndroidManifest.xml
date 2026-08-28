@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/android">
 
-    <!-- Permiso de red con su atributo android:name obligatorio -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -9,7 +8,6 @@
         android:label="Visor Componentes"
         android:supportsRtl="true">
         
-        <!-- Definición de la Activity principal -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -18,7 +16,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
+
     </application>
 
 </manifest>
