@@ -34,7 +34,7 @@ import java.util.regex.Pattern
 data class MaterialItem(
     val material: String,
     val maquina: String,
-    val definicion: String? = ""
+    val definicion: String
 )
 
 class MainActivity : ComponentActivity() {
@@ -96,19 +96,20 @@ fun PantallaPrincipal() {
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             try {
+                // REEMPLAZA ESTA URL CON TU URL REAL DE GOOGLE APPS SCRIPT QUE TERMINA EN /exec
                 val response = ApiClient.instance.getDataFromScript(
                     "https://script.google.com/macros/s/AKfycbxRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec"
                 )
                 apiData = response
                 
                 val unicos = response.componentes
-                    .filter { it.material.isNotBlank() }
-                    .distinctBy { Pair(it.material.trim(), it.maquina.trim()) }
+                    .filter { !it.material.isNullOrBlank() }
+                    .distinctBy { Pair(it.material!!.trim(), it.maquina.orEmpty().trim()) }
                     .map { 
                         MaterialItem(
-                            material = it.material.trim(), 
-                            maquina = it.maquina.trim(), 
-                            definicion = it.definicion.orEmpty().trim()
+                            material = it.material!!.trim(), 
+                            maquina = it.maquina.orEmpty().trim(), 
+                            definicion = it.definicionReal
                         ) 
                     }
 
@@ -149,8 +150,7 @@ fun PantallaPrincipal() {
                 AnimatedVisibility(visible = mostrarSugerencias) {
                     val queryNorm = normalizarTexto(textoBusqueda)
                     val coincidencias = listaMateriales.filter { item ->
-                        val defSegura = item.definicion.orEmpty()
-                        val eval = "${item.material} ${item.maquina} $defSegura"
+                        val eval = "${item.material} ${item.maquina} ${item.definicion}"
                         normalizarTexto(eval).contains(queryNorm)
                     }.take(15)
 
@@ -161,7 +161,6 @@ fun PantallaPrincipal() {
                     ) {
                         LazyColumn {
                             items(coincidencias) { item ->
-                                val defTxt = item.definicion.orEmpty()
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -174,7 +173,7 @@ fun PantallaPrincipal() {
                                 ) {
                                     Text(
                                         text = "${item.material}  │  Máq: ${item.maquina}" + 
-                                                if (defTxt.isNotBlank()) " ($defTxt)" else "",
+                                                if (item.definicion.isNotBlank()) " (${item.definicion})" else "",
                                         fontSize = 13.sp,
                                         color = Color.Black
                                     )
@@ -194,9 +193,8 @@ fun PantallaPrincipal() {
             }
         }
 
-        // Encabezado del Material Seleccionado (Definición General del Material)
+        // Encabezado del Material Seleccionado (Definición del Material: ej. R1M3 6C060...)
         materialSeleccionado?.let { mat ->
-            val defTxt = mat.definicion.orEmpty()
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F0FA)),
                 shape = RoundedCornerShape(8.dp),
@@ -215,7 +213,7 @@ fun PantallaPrincipal() {
                             color = Color(0xFF1F4E79)
                         )
                         Text(
-                            text = if (defTxt.isNotBlank()) defTxt else "Sin descripción registrada",
+                            text = if (mat.definicion.isNotBlank()) mat.definicion else "Sin descripción registrada",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black,
@@ -272,11 +270,12 @@ fun PantallaPrincipal() {
 @Composable
 fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
     val filtrados = componentes.filter { 
-        it.material.trim() == mat.material.trim() && it.maquina.trim() == mat.maquina.trim() 
+        it.material.orEmpty().trim() == mat.material.trim() && 
+        it.maquina.orEmpty().trim() == mat.maquina.trim() 
     }
 
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(180.dp), // Espaciado amplio (~6 veces mayor)
+        verticalArrangement = Arrangement.spacedBy(180.dp), // Espaciado vertical holgado (250px aprox)
         contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp)
     ) {
         item {
@@ -291,10 +290,11 @@ fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
         }
 
         items(filtrados) { comp ->
-            // En grande va el CÓDIGO del componente. Debajo va su DESCRIPCIÓN.
+            // Título Grande: Código del componente (ej: 3991 / RZ30370908)
+            // Descripción Abajo: Descripción del componente (ej: Glycol TES 70001 / Sphere)
             TarjetaElemento(
-                tituloGrande = comp.codigo,
-                descripcion = comp.descripcion,
+                tituloGrande = comp.codigoCompLimpio,
+                descripcion = comp.descCompLimpio,
                 pieQr = comp.pieQrText,
                 datosQr = comp.qrData
             )
@@ -304,12 +304,12 @@ fun VistaComponentes(componentes: List<ComponenteDTO>, mat: MaterialItem) {
 
 @Composable
 fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: MaterialItem) {
-    // Comparación sin espacios adicionales para evitar falsos vacíos
-    val palletFiltrado = pallet.filter { it.materialRef.trim() == mat.material.trim() }
-    val singleFiltrado = single.filter { it.materialRef.trim() == mat.material.trim() }
+    // Coincidencia flexible si el backend devuelve 'material' o 'materialRef'
+    val palletFiltrado = pallet.filter { it.matRef.equals(mat.material.trim(), ignoreCase = true) }
+    val singleFiltrado = single.filter { it.matRef.equals(mat.material.trim(), ignoreCase = true) }
 
     LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(180.dp), // Espaciado amplio (~6 veces mayor)
+        verticalArrangement = Arrangement.spacedBy(180.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp)
     ) {
         if (palletFiltrado.isNotEmpty()) {
@@ -325,8 +325,8 @@ fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: Ma
             }
             items(palletFiltrado) { itemP ->
                 TarjetaElemento(
-                    tituloGrande = itemP.codigo,
-                    descripcion = itemP.descripcion,
+                    tituloGrande = itemP.codigoEmpaque,
+                    descripcion = itemP.descEmpaque,
                     pieQr = itemP.pieQrTextPallet,
                     datosQr = itemP.toQrData(mat.maquina)
                 )
@@ -346,10 +346,22 @@ fun VistaEmpaquetado(pallet: List<EmpaqueDTO>, single: List<EmpaqueDTO>, mat: Ma
             }
             items(singleFiltrado) { itemS ->
                 TarjetaElemento(
-                    tituloGrande = itemS.codigo,
-                    descripcion = itemS.descripcion,
+                    tituloGrande = itemS.codigoEmpaque,
+                    descripcion = itemS.descEmpaque,
                     pieQr = itemS.pieQrTextSingle,
                     datosQr = itemS.toQrData(mat.maquina)
+                )
+            }
+        }
+
+        if (palletFiltrado.isEmpty() && singleFiltrado.isEmpty()) {
+            item {
+                Text(
+                    text = "No hay datos de empaquetado para este material.",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                    textAlign = TextAlign.Center
                 )
             }
         }
@@ -376,17 +388,17 @@ fun TarjetaElemento(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                // Título en GRANDE: Código del componente
+                // Título en Grande: Código del componente (ej. 3991)
                 Text(
-                    text = tituloGrande,
+                    text = if (tituloGrande.isNotBlank()) tituloGrande else "SIN CÓDIGO",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                // Descripción del componente debajo
+                // Texto en Pequeño: Descripción (ej. Glycol TES 70001)
                 Text(
-                    text = descripcion,
+                    text = if (descripcion.isNotBlank()) descripcion else "Sin descripción",
                     fontSize = 14.sp,
                     color = Color(0xFF333333),
                     maxLines = 3,
