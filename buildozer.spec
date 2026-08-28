@@ -17,8 +17,8 @@ source.include_exts = py,png,jpg,kv,atlas,ico,ttf
 # (str) Application versioning
 version = 1.0.0
 
-# (list) Application requirements - UPDATED FOR NDK r25b COMPATIBILITY
-requirements = python3,cython>=3.0.0,kivy==2.1.0,requests,certifi,urllib3
+# (list) Application requirements - FIXED: Use Cython 0.29.37 for Python 3.9 compatibility
+requirements = python3,cython==0.29.37,kivy==2.1.0,requests,certifi,urllib3
 
 # (str) Supported orientation
 orientation = portrait
@@ -49,6 +49,9 @@ android.archs = arm64-v8a,armeabi-v7a
 
 # (bool) Enable AndroidX support
 android.enable_androidx = True
+
+# PYTHON VERSION FOR ANDROID BUILD - IMPORTANT
+android.python_version = 3.9
 
 # CRITICAL: Fix for NDK r25b header conflicts
 # These flags prevent mixing host system headers with NDK sysroot
