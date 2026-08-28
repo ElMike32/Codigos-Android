@@ -5,8 +5,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,12 +49,6 @@ data class Empaque(
     val materialRef: String
 )
 
-data class ApiResponse(
-    val componentes: List<Componente> = emptyList(),
-    val pallet: List<Empaque> = emptyList(),
-    val single: List<Empaque> = emptyList()
-)
-
 data class MaterialItem(
     val material: String,
     val maquina: String,
@@ -76,7 +71,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// --- FUNCIONES AUXILIARES Y FORMATO EXACTO PYTHON ---
+// --- FUNCIONES AUXILIARES DE FORMATO ---
 fun limpiarEntero(valStr: String): String {
     val s = valStr.trim()
     if (s.isEmpty() || s.equals("nan", ignoreCase = true) || s.equals("none", ignoreCase = true)) return ""
@@ -114,7 +109,6 @@ fun obtenerTextoCantidadSingle(qty: String): String {
     }
 }
 
-// Generador de código QR ZXing
 fun generarBitmapQR(datos: String): Bitmap? {
     if (datos.isEmpty()) return null
     return try {
@@ -146,7 +140,7 @@ fun PantallaPrincipal() {
     var textoBusqueda by remember { mutableStateOf("") }
     var mostrarSugerencias by remember { mutableStateOf(false) }
 
-    var tabSeleccionada by remember { mutableStateOf(0) } // 0: Componentes, 1: Empaquetado
+    var tabSeleccionada by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -156,7 +150,6 @@ fun PantallaPrincipal() {
                 )
                 apiData = response
                 
-                // Extraer materiales únicos manteniendo máquina y definición
                 val unicos = response.componentes
                     .filter { it.material.isNotBlank() }
                     .distinctBy { Pair(it.material, it.maquina) }
@@ -178,7 +171,7 @@ fun PantallaPrincipal() {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-        // --- BUSCADOR DINÁMICO ---
+        // Buscador Dinámico
         Card(
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(2.dp),
@@ -205,7 +198,7 @@ fun PantallaPrincipal() {
 
                     Card(
                         modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).padding(top = 4.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1F4E79)),
+                        border = BorderStroke(1.dp, Color(0xFF1F4E79)),
                         colors = CardDefaults.cardColors(containerColor = Color.White)
                     ) {
                         LazyColumn {
@@ -242,7 +235,7 @@ fun PantallaPrincipal() {
             }
         }
 
-        // --- ENCABEZADO DE DEFINICIÓN DEL MATERIAL ---
+        // Encabezado del Material Seleccionado
         materialSeleccionado?.let { mat ->
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F0FA)),
@@ -288,7 +281,7 @@ fun PantallaPrincipal() {
             }
         }
 
-        // --- PESTAÑAS SECCIONES (COMPONENTES / EMPAQUETADO) ---
+        // Tabs
         TabRow(selectedTabIndex = tabSeleccionada, containerColor = Color.White) {
             Tab(selected = tabSeleccionada == 0, onClick = { tabSeleccionada = 0 }) {
                 Text("Componentes", modifier = Modifier.padding(12.dp), fontWeight = FontWeight.Bold)
@@ -315,12 +308,15 @@ fun PantallaPrincipal() {
     }
 }
 
-// --- VISTA 1: LISTA DE COMPONENTES DE MÁQUINA ---
+// --- VISTAS Y TARJETAS ---
 @Composable
 fun VistaComponentes(componentes: List<Componente>, mat: MaterialItem) {
     val filtrados = componentes.filter { it.material == mat.material && it.maquina == mat.maquina }
 
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(32.dp),
+        contentPadding = PaddingValues(bottom = 60.dp)
+    ) {
         item {
             Text(
                 text = "━ COMPONENTES DE MÁQUINA ━",
@@ -328,13 +324,12 @@ fun VistaComponentes(componentes: List<Componente>, mat: MaterialItem) {
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1F4E79),
                 modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
         }
 
         items(filtrados) { comp ->
             val cantLimpia = limpiarEntero(comp.cantidad)
-            // FORMATO EXACTO QR PYTHON: 5X{componente}/{cantidad}/{maquina}/930 O /{componente}/{cantidad}/{maquina}
             val datosQr = if (comp.esTipoX) {
                 "5X${comp.codigo}/$cantLimpia/${comp.maquina}/930"
             } else {
@@ -352,13 +347,15 @@ fun VistaComponentes(componentes: List<Componente>, mat: MaterialItem) {
     }
 }
 
-// --- VISTA 2: LISTA DE PALLET PACKAGING Y SINGLE PACKAGING ---
 @Composable
 fun VistaEmpaquetado(pallet: List<Empaque>, single: List<Empaque>, mat: MaterialItem) {
     val palletFiltrado = pallet.filter { it.materialRef == mat.material }
     val singleFiltrado = single.filter { it.materialRef == mat.material }
 
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(32.dp),
+        contentPadding = PaddingValues(bottom = 60.dp)
+    ) {
         if (palletFiltrado.isNotEmpty()) {
             item {
                 Text(
@@ -367,12 +364,11 @@ fun VistaEmpaquetado(pallet: List<Empaque>, single: List<Empaque>, mat: Material
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1F4E79),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
             }
             items(palletFiltrado) { itemP ->
                 val cantLimpia = limpiarEntero(itemP.cantidad)
-                // FORMATO EXACTO QR EMPAQUE PYTHON: 1X{material_empaque}/{cantidad}/{maquina}
                 val datosQr = "1X${itemP.codigo}/$cantLimpia/${mat.maquina}"
                 val textoPie = "1 PALLET"
 
@@ -393,7 +389,7 @@ fun VistaEmpaquetado(pallet: List<Empaque>, single: List<Empaque>, mat: Material
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1F4E79),
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 6.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
             }
             items(singleFiltrado) { itemS ->
@@ -412,7 +408,6 @@ fun VistaEmpaquetado(pallet: List<Empaque>, single: List<Empaque>, mat: Material
     }
 }
 
-// --- COMPONENTE REUTILIZABLE: TARJETA DE COMPONENTE / EMPAQUE ---
 @Composable
 fun TarjetaElemento(
     codigo: String,
@@ -432,7 +427,6 @@ fun TarjetaElemento(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Sección Texto: Arriba Código y Debajo Descripción
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                 Text(
                     text = codigo,
@@ -450,10 +444,8 @@ fun TarjetaElemento(
                 )
             }
 
-            // Sección QR con Pie de Cantidad
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val qrBitmap = remember(datosQr) { generarBitmapQR(datosQr) }
                 qrBitmap?.let { bmp ->
