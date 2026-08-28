@@ -98,7 +98,7 @@ fun PantallaPrincipal() {
         withContext(Dispatchers.IO) {
             try {
                 val response = ApiClient.instance.getDataFromScript(
-                    "https://script.google.com/macros/s/AKfycbzQpQhXU3sJ2_2x_REMPLAZA_CON_TU_ID/exec"
+                    "https://script.google.com/macros/s/AKfycbxRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec"
                 )
                 apiData = response
                 
