@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.ComponentesApp" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Opcional: Color de fondo -->
+    </style>
+</resources>
