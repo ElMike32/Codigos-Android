@@ -95,9 +95,14 @@ fun PantallaPrincipal() {
     val localStorage = remember { LocalStorage(context) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Obtener ID único de hardware del teléfono
+    // Identificación única persistente
     val deviceId = remember { 
-        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "UNKNOWN_DEVICE"
+        val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+        if (!androidId.isNullOrBlank() && androidId != "9774d56d682e549c") {
+            androidId
+        } else {
+            localStorage.obtenerOCrearDeviceId()
+        }
     }
 
     var apiData by remember { mutableStateOf<ApiResponse?>(null) }
@@ -137,8 +142,8 @@ fun PantallaPrincipal() {
                 estadoConexion = "Verificando acceso..."
             }
             try {
-                // Se envía el ANDROID_ID en la URL a Apps Script
-                val urlConId = "https://script.google.com/macros/s/AKfycbxRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec"
+                // Se envía el ANDROID_ID concatenado a la URL
+                val urlConId = "https://script.google.com/macros/s/AKfycbzRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec?deviceId=$deviceId"
                 val response = ApiClient.instance.getDataFromScript(urlConId)
 
                 withContext(Dispatchers.Main) {
@@ -151,7 +156,6 @@ fun PantallaPrincipal() {
                             estadoConexion = "● Memoria sincronizada"
                         }
                         "WIPE_AND_BLOCK" -> {
-                            // BORRADO REMOTO: Se elimina la base local y se limpia la UI
                             localStorage.limpiarMemoriaLocal()
                             apiData = null
                             listaMateriales = emptyList()
