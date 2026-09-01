@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,15 +24,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.gson.Gson
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.Normalizer
 import java.util.regex.Pattern
@@ -87,8 +90,12 @@ fun generarBitmapQR(datos: String): Bitmap? {
 // --- PANTALLA PRINCIPAL ---
 @Composable
 fun PantallaPrincipal() {
+    val context = LocalContext.current
+    val localStorage = remember { LocalStorage(context) }
+    val coroutineScope = rememberCoroutineScope()
+
     var apiData by remember { mutableStateOf<ApiResponse?>(null) }
-    var estadoConexion by remember { mutableStateOf("Conectando...") }
+    var estadoConexion by remember { mutableStateOf("Cargando...") }
     var estaCargando by remember { mutableStateOf(true) }
 
     var listaMateriales by remember { mutableStateOf<List<MaterialItem>>(emptyList()) }
@@ -97,59 +104,84 @@ fun PantallaPrincipal() {
     
     var buscadorExpandido by remember { mutableStateOf(false) }
     var mostrarSugerencias by remember { mutableStateOf(false) }
-
     var tabSeleccionada by remember { mutableIntStateOf(0) }
 
-    // Descarga ÚNICA al abrir la app. No se vuelve a lanzar al buscar.
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            val maxIntentos = 3
+    // Función encargada de procesar los datos descargados o recuperados de la memoria local
+    fun cargarModelosEnUI(response: ApiResponse) {
+        val unicos = response.componentes
+            .filter { it.material.isNotBlank() }
+            .distinctBy { Pair(it.material.trim(), it.maquina.trim()) }
+            .map { 
+                MaterialItem(
+                    material = it.material.trim(), 
+                    maquina = it.maquina.trim(), 
+                    definicion = it.definicion.trim()
+                ) 
+            }
 
-            for (intento in 1..maxIntentos) {
-                try {
-                    withContext(Dispatchers.Main) {
-                        estadoConexion = if (intento == 1) "Cargando..." else "Reintentando ($intento)..."
-                    }
+        listaMateriales = unicos
+        if (unicos.isNotEmpty() && materialSeleccionado == null) {
+            materialSeleccionado = unicos.first()
+        }
+    }
 
-                    // REEMPLAZA ESTA URL CON TU URL REAL DE GOOGLE APPS SCRIPT QUE TERMINA EN /exec
-                    val response = ApiClient.instance.getDataFromScript(
-                        "https://script.google.com/macros/s/AKfycbxRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec"
-                    )
+    // Función para descargar datos desde la nube (Google Apps Script)
+    fun sincronizarDesdeNube() {
+        coroutineScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                estaCargando = true
+                estadoConexion = "Actualizando desde la nube..."
+            }
+            try {
+                // REEMPLAZA CON TU URL REAL DE APPS SCRIPT
+                val response = ApiClient.instance.getDataFromScript(
+                    "https://script.google.com/macros/s/AKfycbxRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec"
+                )
 
-                    apiData = response
-                    
-                    val unicos = response.componentes
-                        .filter { it.material.isNotBlank() }
-                        .distinctBy { Pair(it.material.trim(), it.maquina.trim()) }
-                        .map { 
-                            MaterialItem(
-                                material = it.material.trim(), 
-                                maquina = it.maquina.trim(), 
-                                definicion = it.definicion.trim()
-                            ) 
-                        }
+                // Guardar copia local en el teléfono
+                val jsonString = Gson().toJson(response)
+                localStorage.guardarJson(jsonString)
 
-                    listaMateriales = unicos
-                    if (unicos.isNotEmpty()) {
-                        materialSeleccionado = unicos.first()
-                    }
-
-                    withContext(Dispatchers.Main) {
-                        estadoConexion = "● Sincronizado"
-                        estaCargando = false
-                    }
-                    break
-                } catch (e: Exception) {
-                    if (intento < maxIntentos) {
-                        delay(1500)
+                apiData = response
+                withContext(Dispatchers.Main) {
+                    cargarModelosEnUI(response)
+                    estadoConexion = "● Memoria sincronizada"
+                    estaCargando = false
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    // Si falla la red pero hay datos en caché local, usar los guardados previamente
+                    if (localStorage.tieneDatos()) {
+                        val jsonLocal = localStorage.obtenerJson()
+                        val datosLocal = Gson().fromJson(jsonLocal, ApiResponse::class.java)
+                        apiData = datosLocal
+                        cargarModelosEnUI(datosLocal)
+                        estadoConexion = "● Modo Offline (Sin Red)"
                     } else {
-                        withContext(Dispatchers.Main) {
-                            estadoConexion = "Error de red"
-                            estaCargando = false
-                        }
+                        estadoConexion = "Error al conectar"
                     }
+                    estaCargando = false
                 }
             }
+        }
+    }
+
+    // Inicio de la app: Cargar instantáneamente desde el teléfono si existe memoria guardada
+    LaunchedEffect(Unit) {
+        if (localStorage.tieneDatos()) {
+            try {
+                val jsonLocal = localStorage.obtenerJson()
+                val datosLocal = Gson().fromJson(jsonLocal, ApiResponse::class.java)
+                apiData = datosLocal
+                cargarModelosEnUI(datosLocal)
+                estadoConexion = "● Datos Locales (Offline)"
+                estaCargando = false
+            } catch (e: Exception) {
+                sincronizarDesdeNube()
+            }
+        } else {
+            // Si es la primera vez que abre la app, descarga de internet
+            sincronizarDesdeNube()
         }
     }
 
@@ -228,7 +260,7 @@ fun PantallaPrincipal() {
             }
         }
 
-        // 2. Encabezado Único e Integrado de Material (Compacto)
+        // 2. Encabezado Integrado (Incluye botón de refresco y búsqueda)
         materialSeleccionado?.let { mat ->
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F0FA)),
@@ -246,14 +278,26 @@ fun PantallaPrincipal() {
                             fontSize = 10.sp,
                             color = if (estadoConexion.contains("●")) Color(0xFF2E7D32) else Color.Red
                         )
-                        IconButton(
-                            onClick = { 
-                                buscadorExpandido = !buscadorExpandido
-                                textoBusqueda = ""
-                            },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color(0xFF1F4E79))
+                        
+                        Row {
+                            // Botón de Actualizar Datos desde Internet
+                            IconButton(
+                                onClick = { sincronizarDesdeNube() },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Sincronizar", tint = Color(0xFF1F4E79))
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            // Botón de Lupa
+                            IconButton(
+                                onClick = { 
+                                    buscadorExpandido = !buscadorExpandido
+                                    textoBusqueda = ""
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Search, contentDescription = "Buscar", tint = Color(0xFF1F4E79))
+                            }
                         }
                     }
 
