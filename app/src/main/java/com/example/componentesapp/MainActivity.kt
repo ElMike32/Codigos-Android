@@ -141,8 +141,9 @@ fun PantallaPrincipal() {
                 estadoConexion = "Verificando acceso..."
             }
             try {
-                val urlConId = "https://script.google.com/macros/s/AKfycbzRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec?deviceId=$deviceId"
-                val response = ApiClient.instance.getDataFromScript(urlConId)
+                // ✅ AHORA (Retrofit maneja el Query limpiamente sin perderse en la redirección):
+                val baseUrl = "https://script.google.com/macros/s/AKfycbzRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec"
+                val response = ApiClient.instance.getDataFromScript(baseUrl, deviceId)
 
                 withContext(Dispatchers.Main) {
                     when (response.status) {
