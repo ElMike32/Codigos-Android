@@ -17,4 +17,9 @@ class LocalStorage(context: Context) {
     fun tieneDatos(): Boolean {
         return prefs.contains("json_datos")
     }
+
+    // Borrado físico de la memoria en caso de orden WIPE
+    fun limpiarMemoriaLocal() {
+        prefs.edit().clear().apply()
+    }
 }
