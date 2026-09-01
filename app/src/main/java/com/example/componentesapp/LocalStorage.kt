@@ -23,8 +23,8 @@ class LocalStorage(context: Context) {
         prefs.edit().clear().apply()
     }
 
-    // Genera un ID único permanente para este teléfono si el sistema devuelve nulo
-    fun obtenerO CrearDeviceId(): String {
+    // Nombre de función corregido sin espacios
+    fun obtenerOCrearDeviceId(): String {
         var id = prefs.getString("device_unique_id", null)
         if (id == null) {
             id = "DEV-" + UUID.randomUUID().toString().take(8).uppercase()
