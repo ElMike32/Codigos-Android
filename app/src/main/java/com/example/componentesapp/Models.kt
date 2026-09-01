@@ -1,6 +1,8 @@
 package com.example.componentesapp
 
 data class ApiResponse(
+    val status: String = "OK",
+    val message: String? = "",
     val componentes: List<ComponenteDTO> = emptyList(),
     val pallet: List<EmpaqueDTO> = emptyList(),
     val single: List<EmpaqueDTO> = emptyList()
