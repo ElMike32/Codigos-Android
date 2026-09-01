@@ -2,6 +2,7 @@ package com.example.componentesapp
 
 import android.content.Context
 import android.content.SharedPreferences
+import java.util.UUID
 
 class LocalStorage(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("app_cache", Context.MODE_PRIVATE)
@@ -18,8 +19,17 @@ class LocalStorage(context: Context) {
         return prefs.contains("json_datos")
     }
 
-    // Borrado físico de la memoria en caso de orden WIPE
     fun limpiarMemoriaLocal() {
         prefs.edit().clear().apply()
+    }
+
+    // Genera un ID único permanente para este teléfono si el sistema devuelve nulo
+    fun obtenerO CrearDeviceId(): String {
+        var id = prefs.getString("device_unique_id", null)
+        if (id == null) {
+            id = "DEV-" + UUID.randomUUID().toString().take(8).uppercase()
+            prefs.edit().putString("device_unique_id", id).apply()
+        }
+        return id
     }
 }
