@@ -95,6 +95,7 @@ fun PantallaPrincipal() {
     val localStorage = remember { LocalStorage(context) }
     val coroutineScope = rememberCoroutineScope()
 
+    // Identificador único de hardware con respaldo de UUID
     val deviceId = remember { 
         val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
         if (!androidId.isNullOrBlank() && androidId != "9774d56d682e549c") {
@@ -134,11 +135,14 @@ fun PantallaPrincipal() {
         }
     }
 
-    fun sincronizarDesdeNube() {
+    // Función principal de consulta con verificación de permisos remotos
+    fun verificarAccesoYSincronizar(esValidacionSilenciosa: Boolean = false) {
         coroutineScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                estaCargando = true
-                estadoConexion = "Verificando acceso..."
+            if (!esValidacionSilenciosa) {
+                withContext(Dispatchers.Main) {
+                    estaCargando = true
+                    estadoConexion = "Verificando acceso..."
+                }
             }
             try {
                 val baseUrl = "https://script.google.com/macros/s/AKfycbxRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec"
@@ -151,9 +155,11 @@ fun PantallaPrincipal() {
                             localStorage.guardarJson(jsonString)
                             apiData = response
                             cargarModelosEnUI(response)
-                            estadoConexion = "● Memoria sincronizada"
+                            estadoConexion = "● Datos sincronizados"
                         }
                         "WIPE_AND_BLOCK" -> {
+                            // 🚨 ACCIÓN DE SEGURIDAD REMOTA:
+                            // Orden de revocación por red. Se borra la memoria física y se limpia la UI.
                             localStorage.limpiarMemoriaLocal()
                             apiData = null
                             listaMateriales = emptyList()
@@ -161,24 +167,30 @@ fun PantallaPrincipal() {
                             estadoConexion = "⛔ ACCESO REVOCADO REMOTAMENTE"
                         }
                         "PENDIENTE" -> {
+                            localStorage.limpiarMemoriaLocal()
                             apiData = null
                             listaMateriales = emptyList()
                             materialSeleccionado = null
                             estadoConexion = "⌛ Dispositivo pendiente de autorización ($deviceId)"
                         }
                         else -> {
-                            estadoConexion = "Estado: ${response.status} - ${response.message.orEmpty()}"
+                            if (!esValidacionSilenciosa) {
+                                estadoConexion = "Estado: ${response.status}"
+                            }
                         }
                     }
                     estaCargando = false
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    // Si falla la red pero hay datos en caché local, se mantienen los datos offline
                     if (localStorage.tieneDatos()) {
-                        val jsonLocal = localStorage.obtenerJson()
-                        val datosLocal = Gson().fromJson(jsonLocal, ApiResponse::class.java)
-                        apiData = datosLocal
-                        cargarModelosEnUI(datosLocal)
+                        if (apiData == null) {
+                            val jsonLocal = localStorage.obtenerJson()
+                            val datosLocal = Gson().fromJson(jsonLocal, ApiResponse::class.java)
+                            apiData = datosLocal
+                            cargarModelosEnUI(datosLocal)
+                        }
                         estadoConexion = "● Modo Offline (Sin Red)"
                     } else {
                         estadoConexion = "Error: ${e.localizedMessage ?: e.message}"
@@ -189,8 +201,10 @@ fun PantallaPrincipal() {
         }
     }
 
+    // Flujo de arranque al abrir la app
     LaunchedEffect(Unit) {
         if (localStorage.tieneDatos()) {
+            // 1. Cargar caché inmediatamente sin bloquear al operador
             try {
                 val jsonLocal = localStorage.obtenerJson()
                 val datosLocal = Gson().fromJson(jsonLocal, ApiResponse::class.java)
@@ -199,10 +213,14 @@ fun PantallaPrincipal() {
                 estadoConexion = "● Datos Locales (Offline)"
                 estaCargando = false
             } catch (e: Exception) {
-                sincronizarDesdeNube()
+                verificarAccesoYSincronizar(esValidacionSilenciosa = false)
             }
+            
+            // 2. Ejecutar la validación de seguridad de fondo inmediatamente
+            verificarAccesoYSincronizar(esValidacionSilenciosa = true)
         } else {
-            sincronizarDesdeNube()
+            // Si es la primera ejecución y no hay datos locales
+            verificarAccesoYSincronizar(esValidacionSilenciosa = false)
         }
     }
 
@@ -302,7 +320,7 @@ fun PantallaPrincipal() {
                         
                         Row {
                             IconButton(
-                                onClick = { sincronizarDesdeNube() },
+                                onClick = { verificarAccesoYSincronizar(esValidacionSilenciosa = false) },
                                 modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(Icons.Default.Refresh, contentDescription = "Sincronizar", tint = Color(0xFF1F4E79))
