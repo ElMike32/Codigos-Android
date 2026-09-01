@@ -95,7 +95,6 @@ fun PantallaPrincipal() {
     val localStorage = remember { LocalStorage(context) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Identificación única persistente
     val deviceId = remember { 
         val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
         if (!androidId.isNullOrBlank() && androidId != "9774d56d682e549c") {
@@ -142,7 +141,6 @@ fun PantallaPrincipal() {
                 estadoConexion = "Verificando acceso..."
             }
             try {
-                // Se envía el ANDROID_ID concatenado a la URL
                 val urlConId = "https://script.google.com/macros/s/AKfycbzRu_PdrXqqFHRL3PtCvJKkY89mu2zajbQHHGIpHWJfImxiRIbG63nM0LGzFnjwNsR6uQ/exec?deviceId=$deviceId"
                 val response = ApiClient.instance.getDataFromScript(urlConId)
 
@@ -166,10 +164,10 @@ fun PantallaPrincipal() {
                             apiData = null
                             listaMateriales = emptyList()
                             materialSeleccionado = null
-                            estadoConexion = "⌛ Dispositivo pendiente de autorización"
+                            estadoConexion = "⌛ Dispositivo pendiente de autorización ($deviceId)"
                         }
                         else -> {
-                            estadoConexion = "Respuesta desconocida del servidor"
+                            estadoConexion = "Estado: ${response.status} - ${response.message.orEmpty()}"
                         }
                     }
                     estaCargando = false
@@ -183,7 +181,8 @@ fun PantallaPrincipal() {
                         cargarModelosEnUI(datosLocal)
                         estadoConexion = "● Modo Offline (Sin Red)"
                     } else {
-                        estadoConexion = "Error de conexión con la red"
+                        // Muestra el mensaje detallado del error real
+                        estadoConexion = "Error: ${e.localizedMessage ?: e.message}"
                     }
                     estaCargando = false
                 }
